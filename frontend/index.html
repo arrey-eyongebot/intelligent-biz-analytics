@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BizAnalytics — Intelligent Business Analytics</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <i class="fas fa-chart-line"></i>
+            <span>BizAnalytics</span>
+        </div>
+        <div class="nav-links">
+            <a href="index.html" class="active">Home</a>
+            <a href="dashboard.html">Dashboard</a>
+            <a href="predict.html">Predict</a>
+            <a href="advisory.html">Advisory</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Intelligent Business Analytics</h1>
+            <p>Upload your sales data and get powerful insights, demand predictions, and business advice powered by Machine Learning.</p>
+            <a href="#upload-section" class="btn-primary">Get Started</a>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <div class="feature-card">
+            <i class="fas fa-chart-bar"></i>
+            <h3>Sales Analytics</h3>
+            <p>Visualize your top products, sales trends, and customer behavior.</p>
+        </div>
+        <div class="feature-card">
+            <i class="fas fa-brain"></i>
+            <h3>Demand Prediction</h3>
+            <p>Use machine learning to predict product demand and plan restocking.</p>
+        </div>
+        <div class="feature-card">
+            <i class="fas fa-lightbulb"></i>
+            <h3>Business Advisory</h3>
+            <p>Get actionable recommendations to grow your business.</p>
+        </div>
+    </section>
+
+    <!-- Upload Section -->
+    <section class="upload-section" id="upload-section">
+        <h2>Upload Your Sales Data</h2>
+        <p>Supported formats: CSV, Excel (.xlsx)</p>
+
+        <div class="upload-box" id="upload-box">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p>Drag & drop your file here or</p>
+            <label for="file-input" class="btn-primary">Browse File</label>
+            <input type="file" id="file-input" accept=".csv,.xlsx,.xls" hidden>
+            <p class="file-name" id="file-name">No file selected</p>
+        </div>
+
+        <button class="btn-primary" id="upload-btn" disabled>
+            <i class="fas fa-upload"></i> Upload & Analyze
+        </button>
+
+        <!-- Upload Status -->
+        <div class="status-box" id="status-box" style="display:none;">
+            <div class="status-content" id="status-content"></div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>Built by Brian Arrey — Computer Engineering &copy; 2025</p>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

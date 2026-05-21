@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard — BizAnalytics</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <i class="fas fa-chart-line"></i>
+            <span>BizAnalytics</span>
+        </div>
+        <div class="nav-links">
+            <a href="index.html">Home</a>
+            <a href="dashboard.html" class="active">Dashboard</a>
+            <a href="predict.html">Predict</a>
+            <a href="advisory.html">Advisory</a>
+        </div>
+    </nav>
+
+    <div class="page-header">
+        <h1><i class="fas fa-chart-bar"></i> Sales Dashboard</h1>
+        <p>Overview of your business performance</p>
+    </div>
+
+    <div class="dashboard-container">
+        <!-- Summary Stats -->
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <h3>Total Revenue</h3>
+                <p id="total-sales">Loading...</p>
+            </div>
+            <div class="stat-card">
+                <h3>Total Transactions</h3>
+                <p id="total-transactions">Loading...</p>
+            </div>
+            <div class="stat-card">
+                <h3>Unique Products</h3>
+                <p id="total-products">Loading...</p>
+            </div>
+            <div class="stat-card">
+                <h3>Total Customers</h3>
+                <p id="total-customers">Loading...</p>
+            </div>
+            <div class="stat-card">
+                <h3>Avg Transaction</h3>
+                <p id="avg-transaction">Loading...</p>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3><i class="fas fa-trophy"></i> Top 10 Products by Revenue</h3>
+                <canvas id="topProductsChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3><i class="fas fa-calendar"></i> Monthly Sales Trend</h3>
+                <canvas id="salesTrendChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3><i class="fas fa-store"></i> Sales by Channel</h3>
+                <canvas id="channelChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3><i class="fas fa-tags"></i> Revenue by Category</h3>
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>Built by Brian Arrey — Computer Engineering &copy; 2025</p>
+    </footer>
+
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
