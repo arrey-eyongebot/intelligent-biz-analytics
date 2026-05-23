@@ -18,3 +18,4 @@ machine learning, and receive actionable business advice.
 
 ## Author
 Brian Arrey — Computer Engineering
+git remote add origin https://github.com/arrey-eyongebot/intelligent-biz-analytics.git

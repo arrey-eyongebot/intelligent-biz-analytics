@@ -1,16 +1,24 @@
+# ============================================================
+# config.py — Application Configuration
+# This file defines global settings used across the backend
+# such as file paths, allowed file types, and size limits.
+# ============================================================
+
 import os
 
-# Base directory
+# Base directory of this config file (backend/)
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
-# Upload folder
+# Path where uploaded files will be saved
+# Goes one level up from backend/ into data/uploads/
 UPLOAD_FOLDER = os.path.join(BASE_DIR, '..', 'data', 'uploads')
 
-# Allowed file extensions
+# Only these file extensions are accepted for upload
 ALLOWED_EXTENSIONS = {'csv', 'xlsx', 'xls'}
 
-# Max file size (10MB)
+# Maximum file size allowed for upload (10 megabytes)
 MAX_CONTENT_LENGTH = 10 * 1024 * 1024
 
-# Create upload folder if it doesn't exist
+# Automatically create the uploads folder if it doesn't exist
+# exist_ok=True means no error is raised if folder already exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
