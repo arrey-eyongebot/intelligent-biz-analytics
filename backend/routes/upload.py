@@ -1,8 +1,8 @@
 # ============================================================
-# routes/upload.py — File Upload & Data Cleaning Endpoint
-# Handles receiving uploaded CSV/Excel files from the frontend,
-# validates them, cleans the data, and saves a cleaned version
-# for use by the analysis and prediction modules.
+# routes/upload.py — Flexible File Upload & Column Mapping
+# Handles CSV/Excel uploads with different column names.
+# Auto-detects columns using fuzzy matching and allows the
+# frontend to confirm or correct the mapping before saving.
 # ============================================================
 
 from flask import Blueprint, request, jsonify
@@ -10,101 +10,96 @@ import os
 import pandas as pd
 import sys
 
-# Add root directory to path so we can import config
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 
-# Create a Blueprint named 'upload'
-# Blueprints allow us to organize routes into separate files
 upload_bp = Blueprint('upload', __name__)
+
+# ── Expected Columns ─────────────────────────────────────────
+# These are the standard column names the system needs.
+# The mapper will try to match uploaded columns to these.
+EXPECTED_COLUMNS = {
+    'Customer_Name': ['customer', 'name', 'client', 'buyer', 'customer_name', 'customername'],
+    'Sex':           ['sex', 'gender', 'male', 'female'],
+    'Product':       ['product', 'item', 'goods', 'product_name', 'itemname', 'description'],
+    'Category':      ['category', 'type', 'group', 'dept', 'department', 'product_type'],
+    'Quantity':      ['quantity', 'qty', 'units', 'amount_sold', 'number', 'count'],
+    'Date':          ['date', 'transaction_date', 'sale_date', 'day', 'time'],
+    'Unit_Price':    ['unit_price', 'price', 'cost', 'rate', 'unit_cost', 'selling_price'],
+    'Amount':        ['amount', 'total', 'revenue', 'sales', 'total_amount', 'total_price'],
+    'Channel':       ['channel', 'platform', 'source', 'sales_channel', 'medium']
+}
 
 
 def allowed_file(filename):
-    """
-    Check if the uploaded file has an allowed extension.
-    Returns True if the file is CSV or Excel, False otherwise.
-    """
+    """Check if the file extension is allowed."""
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-@upload_bp.route('/', methods=['POST'])
-def upload_file():
+def auto_map_columns(uploaded_columns):
     """
-    POST /api/upload/
-    Accepts a file from the frontend form, validates it,
-    saves it, cleans it, and returns a preview of the data.
+    Automatically maps uploaded column names to expected column names
+    using fuzzy/keyword matching.
+
+    For each expected column, checks if any uploaded column name
+    contains a known keyword for that column.
+
+    Returns:
+        mapping (dict): { uploaded_col: expected_col or None }
     """
+    mapping = {}
+    uploaded_lower = {col: col.lower().replace(' ', '_')
+                      for col in uploaded_columns}
 
-    # Check if a file was included in the request
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file provided'}), 400
+    for uploaded_col, lower_col in uploaded_lower.items():
+        matched = None
+        for expected_col, keywords in EXPECTED_COLUMNS.items():
+            # Check if any keyword matches the uploaded column name
+            if any(kw in lower_col or lower_col in kw
+                   for kw in keywords):
+                matched = expected_col
+                break
+        mapping[uploaded_col] = matched
 
-    file = request.files['file']
+    return mapping
 
-    # Check if a file was actually selected
-    if file.filename == '':
-        return jsonify({'error': 'No file selected'}), 400
 
-    # Check if the file type is allowed
-    if not allowed_file(file.filename):
-        return jsonify({'error': 'File type not allowed. Use CSV or Excel'}), 400
+def apply_mapping(df, mapping):
+    """
+    Renames DataFrame columns based on the confirmed mapping.
+    Only keeps columns that have a valid mapping.
 
-    try:
-        # Save the raw uploaded file to the uploads folder
-        filepath = os.path.join(UPLOAD_FOLDER, file.filename)
-        file.save(filepath)
+    Parameters:
+        df      : Original DataFrame
+        mapping : { original_col: expected_col }
+    Returns:
+        Renamed and filtered DataFrame
+    """
+    # Build rename dict (only mapped columns)
+    rename_dict = {k: v for k, v in mapping.items() if v}
+    df = df.rename(columns=rename_dict)
 
-        # Load the file into a pandas DataFrame based on its extension
-        if file.filename.endswith('.csv'):
-            df = pd.read_csv(filepath)
-        else:
-            df = pd.read_excel(filepath)
-
-        # Clean the data using our cleaning function
-        df = clean_data(df)
-
-        # Save the cleaned data as a standard CSV for other modules to use
-        cleaned_path = os.path.join(UPLOAD_FOLDER, 'cleaned_data.csv')
-        df.to_csv(cleaned_path, index=False)
-
-        # Return success response with basic info about the uploaded data
-        return jsonify({
-            'message': 'File uploaded and cleaned successfully',
-            'rows':    len(df),                          # Number of records
-            'columns': list(df.columns),                 # Column names
-            'preview': df.head(5).to_dict(orient='records')  # First 5 rows
-        }), 200
-
-    except Exception as e:
-        # Return error details if anything goes wrong
-        return jsonify({'error': str(e)}), 500
+    # Keep only the expected columns that exist
+    keep_cols = [col for col in EXPECTED_COLUMNS.keys()
+                 if col in df.columns]
+    return df[keep_cols]
 
 
 def clean_data(df):
     """
-    Cleans the uploaded DataFrame by:
-    - Standardizing column names
-    - Removing empty rows
-    - Fixing text formatting
-    - Converting date and numeric columns
-    - Removing duplicate records
+    Cleans the DataFrame after column mapping is applied.
+    Handles formatting, type conversion and deduplication.
     """
-
-    # Standardize column names: strip spaces, title case, replace spaces with underscores
-    # e.g. "product name" becomes "Product_Name"
-    df.columns = [col.strip().title().replace(' ', '_') for col in df.columns]
-
-    # Remove rows where ALL columns are empty
+    # Remove fully empty rows
     df.dropna(how='all', inplace=True)
 
-    # Standardize text in categorical columns (strip spaces, title case)
-    for col in ['Product', 'Category', 'Channel', 'Sex']:
+    # Standardize text columns
+    for col in ['Product', 'Category', 'Channel', 'Sex', 'Customer_Name']:
         if col in df.columns:
-            df[col] = df[col].str.strip().str.title()
+            df[col] = df[col].astype(str).str.strip().str.title()
 
-    # Normalize Channel values to exactly 'Online' or 'Onsite'
-    # This handles variations like 'online', 'ONLINE', etc.
+    # Normalize Channel values
     if 'Channel' in df.columns:
         df['Channel'] = df['Channel'].replace({
             'Online': 'Online', 'Onsite': 'Onsite',
@@ -112,19 +107,119 @@ def clean_data(df):
             'ONLINE': 'Online', 'ONSITE': 'Onsite'
         })
 
-    # Convert Date column to proper datetime format
-    # errors='coerce' turns unparseable dates into NaT (Not a Time)
+    # Convert Date to datetime
     if 'Date' in df.columns:
         df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-        df.dropna(subset=['Date'], inplace=True)  # Remove rows with invalid dates
+        df.dropna(subset=['Date'], inplace=True)
 
-    # Convert numeric columns, replacing invalid values with 0
+    # Convert numeric columns
     for col in ['Quantity', 'Amount', 'Unit_Price']:
         if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-            df[col].fillna(0, inplace=True)
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-    # Remove exact duplicate rows
+    # Remove duplicates
     df.drop_duplicates(inplace=True)
 
     return df
+
+
+@upload_bp.route('/', methods=['POST'])
+def upload_file():
+    """
+    POST /api/upload/
+    Step 1: Upload file and get suggested column mapping.
+    Returns the mapping for user confirmation before saving.
+    """
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+
+    file = request.files['file']
+
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+
+    if not allowed_file(file.filename):
+        return jsonify({'error': 'File type not allowed. Use CSV or Excel'}), 400
+
+    try:
+        # Save raw uploaded file
+        filepath = os.path.join(UPLOAD_FOLDER, file.filename)
+        file.save(filepath)
+
+        # Load into DataFrame
+        if file.filename.endswith('.csv'):
+            df = pd.read_csv(filepath)
+        else:
+            df = pd.read_excel(filepath)
+
+        # Auto-detect column mapping
+        mapping = auto_map_columns(list(df.columns))
+
+        # Check which expected columns are missing
+        mapped_targets  = [v for v in mapping.values() if v]
+        missing_columns = [col for col in EXPECTED_COLUMNS.keys()
+                          if col not in mapped_targets]
+
+        return jsonify({
+            'message':         'File uploaded. Please confirm column mapping.',
+            'filename':        file.filename,
+            'uploaded_columns': list(df.columns),
+            'suggested_mapping': mapping,
+            'missing_columns': missing_columns,
+            'preview':         df.head(3).to_dict(orient='records')
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@upload_bp.route('/confirm', methods=['POST'])
+def confirm_mapping():
+    """
+    POST /api/upload/confirm
+    Step 2: Apply the user-confirmed column mapping,
+    clean the data, and save it for analysis.
+
+    Request body:
+    {
+        "filename": "sales.csv",
+        "mapping": { "Item": "Product", "Price": "Unit_Price", ... }
+    }
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    filename = data.get('filename')
+    mapping  = data.get('mapping', {})
+
+    if not filename:
+        return jsonify({'error': 'No filename provided'}), 400
+
+    try:
+        # Reload the original uploaded file
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        if filename.endswith('.csv'):
+            df = pd.read_csv(filepath)
+        else:
+            df = pd.read_excel(filepath)
+
+        # Apply the confirmed mapping
+        df = apply_mapping(df, mapping)
+
+        # Clean the mapped data
+        df = clean_data(df)
+
+        # Save cleaned data for analysis and ML
+        cleaned_path = os.path.join(UPLOAD_FOLDER, 'cleaned_data.csv')
+        df.to_csv(cleaned_path, index=False)
+
+        return jsonify({
+            'message': 'Data mapped and saved successfully!',
+            'rows':    len(df),
+            'columns': list(df.columns),
+            'preview': df.head(5).to_dict(orient='records')
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

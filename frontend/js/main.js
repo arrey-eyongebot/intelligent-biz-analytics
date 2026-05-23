@@ -1,121 +1,201 @@
 // ============================================================
-// main.js — Upload Page Logic
-// Handles file selection, drag and drop, and file upload.
-// Sends the selected file to the backend API and displays
-// the response (success or error) to the user.
+// main.js — Upload Page with Flexible Column Mapping
+// Handles file upload, displays auto-detected column mapping
+// for user confirmation, then submits confirmed mapping
+// to the backend to finalize data processing.
 // ============================================================
 
-// Base URL for all backend API calls
-// Change this when deploying to production
 const API_BASE = 'http://127.0.0.1:5000/api';
 
-// ── Get References to HTML Elements ─────────────────────────
-// We grab these elements once and reuse them throughout
-const fileInput     = document.getElementById('file-input');     // Hidden file input
-const uploadBtn     = document.getElementById('upload-btn');     // Upload button
-const fileNameEl    = document.getElementById('file-name');      // File name display
-const statusBox     = document.getElementById('status-box');     // Result container
-const statusContent = document.getElementById('status-content'); // Result content
+// Expected system columns for the dropdown options
+const EXPECTED_COLUMNS = [
+    'Customer_Name', 'Sex', 'Product', 'Category',
+    'Quantity', 'Date', 'Unit_Price', 'Amount', 'Channel'
+];
+
+// Stores the uploaded filename and mapping state
+let uploadedFilename = '';
+let currentMapping   = {};
+
+// ── DOM References ────────────────────────────────────────────
+const fileInput      = document.getElementById('file-input');
+const uploadBtn      = document.getElementById('upload-btn');
+const fileNameEl     = document.getElementById('file-name');
+const statusBox      = document.getElementById('status-box');
+const statusContent  = document.getElementById('status-content');
+const mappingSection = document.getElementById('mapping-section');
+const mappingTable   = document.getElementById('mapping-table');
 
 
-// ── Event: File Selected via Browse Button ───────────────────
-// Fires when the user picks a file using the Browse button
+// ── File Selected ─────────────────────────────────────────────
 fileInput.addEventListener('change', () => {
-    const file = fileInput.files[0]; // Get the first selected file
+    const file = fileInput.files[0];
     if (file) {
-        fileNameEl.textContent  = file.name; // Show the file name
-        uploadBtn.disabled      = false;     // Enable the upload button
+        fileNameEl.textContent = file.name;
+        uploadBtn.disabled     = false;
     }
 });
 
 
-// ── Event: Drag Over the Upload Box ─────────────────────────
-// Fires when a file is dragged over the upload box
-// We must call preventDefault() to allow the drop event
+// ── Drag and Drop ─────────────────────────────────────────────
 const uploadBox = document.getElementById('upload-box');
 uploadBox.addEventListener('dragover', (e) => {
     e.preventDefault();
-    uploadBox.style.background = '#eff6ff'; // Highlight box on drag
+    uploadBox.style.background = '#eff6ff';
 });
 
-
-// ── Event: File Dropped onto Upload Box ─────────────────────
-// Fires when the user drops a file onto the upload box
 uploadBox.addEventListener('drop', (e) => {
     e.preventDefault();
-    const file = e.dataTransfer.files[0]; // Get the dropped file
+    const file = e.dataTransfer.files[0];
     if (file) {
-        fileInput.files        = e.dataTransfer.files; // Assign to input
-        fileNameEl.textContent = file.name;            // Show file name
-        uploadBtn.disabled     = false;                // Enable upload button
+        fileInput.files        = e.dataTransfer.files;
+        fileNameEl.textContent = file.name;
+        uploadBtn.disabled     = false;
     }
 });
 
 
-// ── Event: Upload Button Clicked ─────────────────────────────
-// Fires when the user clicks "Upload & Analyze"
-// Sends the file to the backend and handles the response
+// ── Upload File and Get Column Mapping ────────────────────────
 uploadBtn.addEventListener('click', async () => {
     const file = fileInput.files[0];
-    if (!file) return; // Do nothing if no file selected
+    if (!file) return;
 
-    // Show loading spinner while waiting for backend response
     statusBox.style.display  = 'block';
-    statusContent.innerHTML  = `
-        <div class="spinner"></div>
-        <p>Uploading and analyzing your data...</p>
-    `;
-    uploadBtn.disabled = true; // Prevent double clicks
+    statusContent.innerHTML  = '<div class="spinner"></div><p>Uploading and detecting columns...</p>';
+    uploadBtn.disabled       = true;
+    mappingSection.style.display = 'none';
 
-    // Build a FormData object to send the file as multipart/form-data
     const formData = new FormData();
     formData.append('file', file);
 
     try {
-        // Send POST request to the upload endpoint
         const response = await fetch(`${API_BASE}/upload/`, {
             method: 'POST',
             body:   formData
         });
 
-        const data = await response.json(); // Parse the JSON response
+        const data = await response.json();
 
         if (response.ok) {
-            // ── Success: Show upload summary and link to dashboard
+            uploadedFilename = data.filename;
+            currentMapping   = data.suggested_mapping;
+
+            // Show upload success summary
             statusContent.innerHTML = `
                 <p class="status-success">
                     <i class="fas fa-check-circle"></i>
-                    File uploaded successfully!
+                    File uploaded! Now confirm your column mapping below.
                 </p>
-                <p>📊 <strong>${data.rows}</strong> rows processed</p>
-                <p>📁 Columns found:
-                    <strong>${data.columns.join(', ')}</strong>
+                <p>📁 Uploaded columns: <strong>${data.uploaded_columns.join(', ')}</strong></p>
+                ${data.missing_columns.length > 0
+                    ? `<p style="color:#f59e0b">
+                        ⚠️ Could not auto-detect:
+                        <strong>${data.missing_columns.join(', ')}</strong>.
+                        Please map them manually below.
+                       </p>`
+                    : '<p style="color:#10b981">✅ All columns detected successfully!</p>'
+                }
+            `;
+
+            // Build the mapping confirmation table
+            buildMappingTable(data.suggested_mapping);
+            mappingSection.style.display = 'block';
+
+        } else {
+            statusContent.innerHTML = `
+                <p class="status-error">Error: ${data.error}</p>
+            `;
+        }
+    } catch (err) {
+        statusContent.innerHTML = `
+            <p class="status-error">Could not connect to server.</p>
+        `;
+    }
+
+    uploadBtn.disabled = false;
+});
+
+
+// ── Build Column Mapping Table ────────────────────────────────
+// Creates a table row for each uploaded column with a dropdown
+// so the user can confirm or change the auto-detected mapping
+function buildMappingTable(mapping) {
+    mappingTable.innerHTML = `
+        <table class="mapping-tbl">
+            <thead>
+                <tr>
+                    <th>Your Column</th>
+                    <th>Maps To (System Column)</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${Object.entries(mapping).map(([col, mapped]) => `
+                    <tr>
+                        <td><strong>${col}</strong></td>
+                        <td>
+                            <select class="map-select" data-col="${col}">
+                                <option value="">-- Skip this column --</option>
+                                ${EXPECTED_COLUMNS.map(ec => `
+                                    <option value="${ec}"
+                                        ${mapped === ec ? 'selected' : ''}>
+                                        ${ec}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+
+// ── Confirm Mapping and Process Data ─────────────────────────
+document.getElementById('confirm-btn').addEventListener('click', async () => {
+    // Read current dropdown selections
+    const selects = document.querySelectorAll('.map-select');
+    const mapping = {};
+    selects.forEach(sel => {
+        if (sel.value) mapping[sel.dataset.col] = sel.value;
+    });
+
+    statusContent.innerHTML = '<div class="spinner"></div><p>Processing your data...</p>';
+
+    try {
+        const response = await fetch(`${API_BASE}/upload/confirm`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({
+                filename: uploadedFilename,
+                mapping:  mapping
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            mappingSection.style.display = 'none';
+            statusContent.innerHTML = `
+                <p class="status-success">
+                    <i class="fas fa-check-circle"></i>
+                    Data processed successfully!
                 </p>
+                <p>📊 <strong>${data.rows}</strong> records ready for analysis</p>
+                <p>📁 Columns mapped: <strong>${data.columns.join(', ')}</strong></p>
                 <br>
                 <a href="dashboard.html" class="btn-primary">
                     <i class="fas fa-chart-bar"></i> View Dashboard
                 </a>
             `;
         } else {
-            // ── Backend returned an error (e.g. wrong file type)
             statusContent.innerHTML = `
-                <p class="status-error">
-                    <i class="fas fa-times-circle"></i>
-                    Error: ${data.error}
-                </p>
+                <p class="status-error">Error: ${data.error}</p>
             `;
         }
-
     } catch (err) {
-        // ── Network error: backend is not running or unreachable
         statusContent.innerHTML = `
-            <p class="status-error">
-                <i class="fas fa-times-circle"></i>
-                Could not connect to server.
-                Make sure the backend is running.
-            </p>
+            <p class="status-error">Could not connect to server.</p>
         `;
     }
-
-    uploadBtn.disabled = false; // Re-enable button after response
 });
