@@ -1,24 +1,30 @@
 # ============================================================
-# config.py — Application Configuration
-# This file defines global settings used across the backend
-# such as file paths, allowed file types, and size limits.
+# config.py — Global Application Configuration
+#
+# Defines shared settings used across the entire backend:
+# - Where uploaded files are stored
+# - Which file types are allowed
+# - Maximum upload file size
+#
+# Any module can import from here instead of hardcoding paths.
 # ============================================================
 
 import os
 
-# Base directory of this config file (backend/)
+# Absolute path of the backend/ directory
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
-# Path where uploaded files will be saved
-# Goes one level up from backend/ into data/uploads/
+# Path where all uploaded files will be saved
+# Resolves to: intelligent-biz-analytics/data/uploads/
 UPLOAD_FOLDER = os.path.join(BASE_DIR, '..', 'data', 'uploads')
 
-# Only these file extensions are accepted for upload
+# Only these file extensions are accepted during upload
 ALLOWED_EXTENSIONS = {'csv', 'xlsx', 'xls'}
 
-# Maximum file size allowed for upload (10 megabytes)
+# Maximum allowed upload size: 10 megabytes
+# 1024 bytes = 1 KB, 1024 KB = 1 MB, so 10 * 1024 * 1024 = 10 MB
 MAX_CONTENT_LENGTH = 10 * 1024 * 1024
 
-# Automatically create the uploads folder if it doesn't exist
-# exist_ok=True means no error is raised if folder already exists
+# Automatically create the uploads folder if it does not exist
+# exist_ok=True prevents an error if the folder already exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)

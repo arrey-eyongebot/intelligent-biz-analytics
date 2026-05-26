@@ -3,11 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advisory — BizAnalytics</title>
+    <title>Advisory Chatbot — BizAnalytics</title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+
+    <!-- Navigation -->
     <nav class="navbar">
         <div class="nav-brand">
             <i class="fas fa-chart-line"></i>
@@ -18,24 +21,96 @@
             <a href="dashboard.html">Dashboard</a>
             <a href="predict.html">Predict</a>
             <a href="advisory.html" class="active">Advisory</a>
+            <a href="transactions.html">Record Sale</a>
         </div>
     </nav>
 
+    <!-- Page Header -->
     <div class="page-header">
-        <h1><i class="fas fa-lightbulb"></i> Business Advisory</h1>
-        <p>Actionable recommendations based on your sales data</p>
+        <h1><i class="fas fa-robot"></i> Business Advisory Chatbot</h1>
+        <p>Ask me anything about your business — I will analyze your data and advise you</p>
     </div>
 
-    <div class="advisory-container">
-        <div id="advisory-content">
-            <div class="spinner"></div>
+    <!-- ── Chat Interface ─────────────────────────────────────
+         Full chatbot UI including suggestion chips, message
+         history window, and the text input area.            -->
+    <div class="chat-wrapper">
+
+        <!-- Suggestion chips: quick question shortcuts -->
+        <div class="suggestions">
+            <p class="suggestions-label">
+                <i class="fas fa-lightbulb"></i> Try asking:
+            </p>
+            <div class="suggestion-chips">
+                <button class="chip" onclick="useSuggestion(this)">
+                    Which product should I restock first?
+                </button>
+                <button class="chip" onclick="useSuggestion(this)">
+                    What is my best sales channel?
+                </button>
+                <button class="chip" onclick="useSuggestion(this)">
+                    How can I increase my revenue?
+                </button>
+                <button class="chip" onclick="useSuggestion(this)">
+                    Which products are underperforming?
+                </button>
+                <button class="chip" onclick="useSuggestion(this)">
+                    What marketing strategy do you recommend?
+                </button>
+                <button class="chip" onclick="useSuggestion(this)">
+                    When is my peak sales season?
+                </button>
+                <button class="chip" onclick="useSuggestion(this)">
+                    Help me map my data columns
+                </button>
+            </div>
         </div>
+
+        <!-- Chat message history window -->
+        <div class="chat-box" id="chat-box">
+            <!-- Initial welcome message from the bot -->
+            <div class="message bot-message">
+                <div class="message-avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="message-bubble">
+                    <p>
+                        Hello! I am your AI business advisor powered by Claude.
+                        I have access to your uploaded sales data and I am ready
+                        to help you make smarter business decisions.
+                        You can also ask me to help map your data columns if your
+                        file uses different column names.
+                        What would you like to know?
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat input area: text field + send + clear buttons -->
+        <div class="chat-input-area">
+            <input
+                type="text"
+                id="chat-input"
+                placeholder="Ask me about your business..."
+                onkeypress="handleKeyPress(event)"
+            >
+            <!-- Send button (paper plane icon) -->
+            <button id="send-btn" onclick="sendMessage()">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+            <!-- Clear button resets the entire chat -->
+            <button id="clear-btn" onclick="clearChat()" title="Clear chat">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+
     </div>
 
     <footer class="footer">
         <p>Built by Brian Arrey — Computer Engineering &copy; 2025</p>
     </footer>
 
+    <!-- Chatbot logic -->
     <script src="js/advisory.js"></script>
 </body>
 </html>

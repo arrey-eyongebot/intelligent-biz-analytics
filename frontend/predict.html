@@ -5,9 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Predict Demand — BizAnalytics</title>
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+
+    <!-- Navigation -->
     <nav class="navbar">
         <div class="nav-brand">
             <i class="fas fa-chart-line"></i>
@@ -18,18 +21,24 @@
             <a href="dashboard.html">Dashboard</a>
             <a href="predict.html" class="active">Predict</a>
             <a href="advisory.html">Advisory</a>
+            <a href="transactions.html">Record Sale</a>
         </div>
     </nav>
 
+    <!-- Page Header -->
     <div class="page-header">
         <h1><i class="fas fa-brain"></i> Demand Prediction</h1>
-        <p>Predict product demand and get restocking advice</p>
+        <p>Predict product demand and get restocking advice powered by Machine Learning</p>
     </div>
 
+    <!-- ── Prediction Form ────────────────────────────────────
+         User fills in product details; predict.js sends them
+         to the backend ML endpoint and displays the result.  -->
     <div class="form-container">
         <div class="form-group">
             <label>Product Name</label>
-            <input type="text" id="product" placeholder="e.g. Rice (5kg)">
+            <input type="text" id="product"
+                   placeholder="e.g. Rice (5kg)">
         </div>
         <div class="form-group">
             <label>Category</label>
@@ -40,6 +49,7 @@
                 <option>Clothing</option>
                 <option>Stationery</option>
                 <option>Cosmetics</option>
+                <option>Other</option>
             </select>
         </div>
         <div class="form-group">
@@ -52,17 +62,20 @@
         </div>
         <div class="form-group">
             <label>Unit Price (FCFA)</label>
-            <input type="number" id="unit_price" placeholder="e.g. 3500">
+            <input type="number" id="unit_price"
+                   placeholder="e.g. 3500">
         </div>
         <div class="form-group">
-            <label>Month (1-12)</label>
-            <input type="number" id="month" placeholder="e.g. 6" min="1" max="12">
+            <label>Month to Predict (1–12)</label>
+            <input type="number" id="month"
+                   placeholder="e.g. 6" min="1" max="12">
         </div>
 
         <button class="btn-primary" id="predict-btn" style="width:100%">
             <i class="fas fa-magic"></i> Predict Demand
         </button>
 
+        <!-- Result box shown after prediction (hidden by default) -->
         <div class="result-box" id="result-box">
             <h3><i class="fas fa-chart-line"></i> Prediction Result</h3>
             <div id="result-content"></div>
@@ -73,6 +86,7 @@
         <p>Built by Brian Arrey — Computer Engineering &copy; 2025</p>
     </footer>
 
+    <!-- Prediction form logic -->
     <script src="js/predict.js"></script>
 </body>
 </html>
