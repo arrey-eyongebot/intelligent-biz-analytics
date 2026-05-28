@@ -599,3 +599,174 @@ body {
     0%   { transform: rotate(0deg);   }
     100% { transform: rotate(360deg); }
 }
+/* ── Auth Pages (Login & Signup) ────────────────────────────
+   Gradient background and centered card for auth pages.   */
+
+/* Full page gradient background for login and signup */
+.auth-body {
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--dark), var(--primary));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Centered wrapper for the auth card */
+.auth-wrapper {
+    width: 100%;
+    max-width: 440px;
+    padding: 1rem;
+}
+
+/* White card containing the form */
+.auth-card {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 2.5rem 2rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* Brand logo at top of auth card */
+.auth-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 1.5rem;
+}
+
+.auth-title {
+    text-align: center;
+    font-size: 1.6rem;
+    color: var(--dark);
+    margin-bottom: 0.3rem;
+}
+
+.auth-subtitle {
+    text-align: center;
+    color: var(--gray);
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+}
+
+/* Error message box */
+.auth-error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    color: var(--danger);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Success message box */
+.auth-success {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    color: var(--secondary);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Input field wrapper with icon inside */
+.input-icon-wrapper {
+    position: relative;
+}
+
+/* Icon on the left inside the input */
+.input-icon {
+    position: absolute;
+    left: 0.9rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray);
+    font-size: 0.9rem;
+}
+
+/* Shift input text right to make room for icon */
+.input-icon-wrapper input {
+    padding-left: 2.5rem !important;
+    padding-right: 2.5rem !important;
+}
+
+/* Eye icon to toggle password visibility */
+.toggle-password {
+    position: absolute;
+    right: 0.9rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray);
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.toggle-password:hover { color: var(--primary); }
+
+/* Full-width auth submit button */
+.auth-btn {
+    width: 100%;
+    padding: 0.85rem;
+    font-size: 1rem;
+    margin-top: 0.5rem;
+    text-align: center;
+}
+
+/* Link to switch between login and signup */
+.auth-switch {
+    text-align: center;
+    margin-top: 1.5rem;
+    color: var(--gray);
+    font-size: 0.9rem;
+}
+
+.auth-switch a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.auth-switch a:hover { text-decoration: underline; }
+
+/* ── Navbar User Display ─────────────────────────────────────
+   Shows logged-in username and logout button in navbar.   */
+.nav-user {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: 1.5rem;
+}
+
+/* Username with person icon */
+.nav-username {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+/* Logout button in navbar */
+.nav-logout-btn {
+    background: var(--danger);
+    color: var(--white);
+    border: none;
+    border-radius: 6px;
+    padding: 0.4rem 0.85rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.nav-logout-btn:hover { background: #dc2626; }
