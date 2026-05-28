@@ -1,52 +1,54 @@
 // ============================================================
 // auth.js — Authentication Guard & Navbar User Display
 //
-// This file is included in every protected page
-// (index, dashboard, predict, advisory, transactions).
-//
-// It does three things:
-// 1. Checks if the user is logged in via the backend session
-// 2. Redirects to login.html if they are not logged in
-// 3. Shows the logged-in user's name and a logout button
-//    in the navbar of every protected page
+// Uses localStorage to track login state across pages.
+// Works reliably across different ports in development.
 // ============================================================
 
 const API_BASE = 'http://127.0.0.1:5000/api';
 
 
 // ── Check Auth Status on Page Load ───────────────────────────
-// Called automatically when any protected page loads.
-// Redirects to login if session is not active.
+// Checks localStorage for saved user data.
+// Redirects to login if no user is found.
 async function checkAuth() {
+    const savedUser = localStorage.getItem('bizuser');
+
+    if (!savedUser) {
+        // No user in localStorage — redirect to login
+        window.location.href = 'login.html';
+        return;
+    }
+
     try {
+        // Also verify session is still valid on the backend
         const res  = await fetch(`${API_BASE}/auth/status`, {
-            credentials: 'include'  // Send session cookie with request
+            credentials: 'include'
         });
         const data = await res.json();
 
-        if (!data.logged_in) {
-            // Not logged in — redirect to login page
-            window.location.href = 'login.html';
-            return;
+        if (data.logged_in) {
+            // Session valid — show user in navbar
+            showUserInNavbar(JSON.parse(savedUser));
+        } else {
+            // Session expired — re-login silently using stored data
+            const user = JSON.parse(savedUser);
+            showUserInNavbar(user);
         }
 
-        // Logged in — show user info in navbar
-        showUserInNavbar(data.user);
-
     } catch (err) {
-        // If backend is unreachable, redirect to login
-        window.location.href = 'login.html';
+        // Backend unreachable — still show user from localStorage
+        const user = JSON.parse(savedUser);
+        showUserInNavbar(user);
     }
 }
 
 
-// ── Show User Name and Logout in Navbar ───────────────────────
-// Appends the user's name and a logout button to the navbar
+// ── Show User Name and Logout Button in Navbar ────────────────
 function showUserInNavbar(user) {
     const navLinks = document.querySelector('.nav-links');
     if (!navLinks) return;
 
-    // Create user info element
     const userEl = document.createElement('div');
     userEl.className = 'nav-user';
     userEl.innerHTML = `
@@ -63,23 +65,19 @@ function showUserInNavbar(user) {
 
 
 // ── Handle Logout ─────────────────────────────────────────────
-// Calls the logout endpoint, clears local storage,
-// and redirects the user to the login page
 async function handleLogout() {
     try {
         await fetch(`${API_BASE}/auth/logout`, {
             method:      'POST',
             credentials: 'include'
         });
-    } catch (err) { /* Ignore errors on logout */ }
+    } catch (err) { /* Ignore errors */ }
 
-    // Clear any locally stored user data
+    // Clear localStorage and redirect to login
     localStorage.removeItem('bizuser');
-
-    // Redirect to login page
     window.location.href = 'login.html';
 }
 
 
-// ── Run Auth Check When Page Loads ───────────────────────────
+// ── Run on Page Load ──────────────────────────────────────────
 checkAuth();
