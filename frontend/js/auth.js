@@ -1,50 +1,34 @@
 // ============================================================
 // auth.js — Authentication Guard & Navbar User Display
 //
-// Uses localStorage to track login state across pages.
-// Works reliably across different ports in development.
+// NOTE: API_BASE is NOT declared here to avoid conflicts
+// with other JS files loaded on the same page.
+// It uses its own local constant instead.
 // ============================================================
 
-const API_BASE = 'http://127.0.0.1:5000/api';
+// Local API URL — not exported to avoid duplicate declaration
+const AUTH_API = 'http://127.0.0.1:5000/api';
 
-
-// ── Check Auth Status on Page Load ───────────────────────────
-// Checks localStorage for saved user data.
-// Redirects to login if no user is found.
 async function checkAuth() {
     const savedUser = localStorage.getItem('bizuser');
 
     if (!savedUser) {
-        // No user in localStorage — redirect to login
         window.location.href = 'login.html';
         return;
     }
 
     try {
-        // Also verify session is still valid on the backend
-        const res  = await fetch(`${API_BASE}/auth/status`, {
+        const res  = await fetch(`${AUTH_API}/auth/status`, {
             credentials: 'include'
         });
         const data = await res.json();
-
-        if (data.logged_in) {
-            // Session valid — show user in navbar
-            showUserInNavbar(JSON.parse(savedUser));
-        } else {
-            // Session expired — re-login silently using stored data
-            const user = JSON.parse(savedUser);
-            showUserInNavbar(user);
-        }
-
+        showUserInNavbar(JSON.parse(savedUser));
     } catch (err) {
-        // Backend unreachable — still show user from localStorage
         const user = JSON.parse(savedUser);
         showUserInNavbar(user);
     }
 }
 
-
-// ── Show User Name and Logout Button in Navbar ────────────────
 function showUserInNavbar(user) {
     const navLinks = document.querySelector('.nav-links');
     if (!navLinks) return;
@@ -63,21 +47,16 @@ function showUserInNavbar(user) {
     navLinks.appendChild(userEl);
 }
 
-
-// ── Handle Logout ─────────────────────────────────────────────
 async function handleLogout() {
     try {
-        await fetch(`${API_BASE}/auth/logout`, {
+        await fetch(`${AUTH_API}/auth/logout`, {
             method:      'POST',
             credentials: 'include'
         });
-    } catch (err) { /* Ignore errors */ }
+    } catch (err) {}
 
-    // Clear localStorage and redirect to login
     localStorage.removeItem('bizuser');
     window.location.href = 'login.html';
 }
 
-
-// ── Run on Page Load ──────────────────────────────────────────
 checkAuth();
