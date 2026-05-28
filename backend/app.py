@@ -1,43 +1,40 @@
 # ============================================================
-# app.py — Main Entry Point for the Flask Application
+# app.py — Main Flask Application Entry Point
 #
-# This file is the starting point of the entire backend.
-# It creates the Flask app, enables CORS so the frontend
-# can communicate with the backend across different ports,
-# and registers all route blueprints (groups of endpoints).
-#
-# To run the app: python app.py
-# The server will start at http://127.0.0.1:5000
+# Creates the Flask app, configures sessions, enables CORS,
+# and registers all route blueprints.
 # ============================================================
 
 from flask import Flask
 from flask_cors import CORS
+from routes.upload       import upload_bp
+from routes.analysis     import analysis_bp
+from routes.advisory     import advisory_bp
+from routes.predict      import predict_bp
+from routes.transactions import transactions_bp
+from routes.auth         import auth_bp
+import os
 
-# Import all route blueprints from the routes folder
-from routes.upload       import upload_bp        # File upload & column mapping
-from routes.analysis     import analysis_bp      # Sales data analysis
-from routes.advisory     import advisory_bp      # AI chatbot advisory
-from routes.predict      import predict_bp       # ML demand prediction
-from routes.transactions import transactions_bp  # Manual transaction recording
-
-# ── Create Flask App Instance ────────────────────────────────
 app = Flask(__name__)
 
-# ── Enable CORS ──────────────────────────────────────────────
-# Without this, the browser blocks requests from the frontend
-# (running on port 5500) to the backend (running on port 5000)
-CORS(app)
+# ── Secret Key for Sessions ──────────────────────────────────
+# Used to sign session cookies securely.
+# In production this should be a long random secret string
+# stored in an environment variable.
+app.secret_key = os.environ.get('SECRET_KEY', 'bizanalytics-secret-key-2025')
 
-# ── Register Blueprints ──────────────────────────────────────
-# Each blueprint handles a specific group of API endpoints.
-# url_prefix defines the base URL path for each group.
+# ── Enable CORS with session support ─────────────────────────
+# supports_credentials=True is required for session cookies
+# to work across different ports (frontend 5500, backend 5000)
+CORS(app, supports_credentials=True)
+
+# ── Register All Blueprints ───────────────────────────────────
+app.register_blueprint(auth_bp,          url_prefix='/api/auth')
 app.register_blueprint(upload_bp,        url_prefix='/api/upload')
 app.register_blueprint(analysis_bp,      url_prefix='/api/analysis')
 app.register_blueprint(advisory_bp,      url_prefix='/api/advisory')
 app.register_blueprint(predict_bp,       url_prefix='/api/predict')
 app.register_blueprint(transactions_bp,  url_prefix='/api/transactions')
 
-# ── Start the Server ─────────────────────────────────────────
-# debug=True enables auto-reload on changes and detailed errors
 if __name__ == '__main__':
     app.run(debug=True)
