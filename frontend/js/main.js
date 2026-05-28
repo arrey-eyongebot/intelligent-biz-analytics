@@ -1,17 +1,33 @@
 // ============================================================
-// main.js — Home Page Upload & Column Mapping Logic
+// main.js — Smart Upload & Column Mapping Logic
+//
+// FLOW:
+// 1. User selects a CSV or Excel file
+// 2. File is uploaded to the backend
+// 3. If columns match perfectly → go straight to dashboard
+// 4. If columns don't match → show mapping table where:
+//    LEFT  = required system column name
+//    RIGHT = dropdown of columns from the uploaded file
+// 5. User confirms mapping → data saved → go to dashboard
+// Unmatched columns are automatically dropped.
 // ============================================================
 
-const API_BASE = 'http://127.0.0.1:5000/api';
+const API_BASE = '/api';
 
-const EXPECTED_COLUMNS = [
-    'Customer_Name', 'Sex', 'Product', 'Category',
-    'Quantity', 'Date', 'Unit_Price', 'Amount', 'Channel'
+// Required system columns (must all be mapped)
+const REQUIRED_COLUMNS = [
+    'Product', 'Category', 'Quantity',
+    'Date', 'Unit_Price', 'Amount', 'Channel'
 ];
 
-let uploadedFilename = '';
-let currentMapping   = {};
+// Optional system columns (mapped if available)
+const OPTIONAL_COLUMNS = ['Customer_Name', 'Sex'];
 
+// State variables
+let uploadedFilename  = '';
+let uploadedColumns   = [];
+
+// ── DOM References ────────────────────────────────────────────
 const fileInput      = document.getElementById('file-input');
 const uploadBtn      = document.getElementById('upload-btn');
 const fileNameEl     = document.getElementById('file-name');
@@ -20,7 +36,8 @@ const statusContent  = document.getElementById('status-content');
 const mappingSection = document.getElementById('mapping-section');
 const mappingTable   = document.getElementById('mapping-table');
 
-// ── File Selected ─────────────────────────────────────────────
+
+// ── File Selected via Browse ──────────────────────────────────
 fileInput.addEventListener('change', () => {
     const file = fileInput.files[0];
     if (file) {
@@ -28,6 +45,7 @@ fileInput.addEventListener('change', () => {
         uploadBtn.disabled     = false;
     }
 });
+
 
 // ── Drag and Drop ─────────────────────────────────────────────
 const uploadBox = document.getElementById('upload-box');
@@ -47,18 +65,20 @@ uploadBox.addEventListener('drop', (e) => {
     }
 });
 
-// ── Upload File ───────────────────────────────────────────────
+
+// ── Upload Button Clicked ─────────────────────────────────────
 uploadBtn.addEventListener('click', async (e) => {
-    e.preventDefault()  // Prevent any default browser behaviour
-    e.stopPropagation() // Stop event from bubbling up
+    e.preventDefault();
+    e.stopPropagation();
 
     const file = fileInput.files[0];
     if (!file) return;
 
+    // Show loading spinner
     statusBox.style.display      = 'block';
     statusContent.innerHTML      = `
         <div class="spinner"></div>
-        <p>Uploading and detecting columns...</p>`;
+        <p>Uploading and checking columns...</p>`;
     uploadBtn.disabled           = true;
     mappingSection.style.display = 'none';
 
@@ -74,101 +94,209 @@ uploadBtn.addEventListener('click', async (e) => {
 
         const data = await response.json();
 
-        if (response.ok) {
-            uploadedFilename = data.filename;
-            currentMapping   = data.suggested_mapping;
-
-            statusContent.innerHTML = `
-                <p class="status-success">
-                    <i class="fas fa-check-circle"></i>
-                    File uploaded! Please confirm the column mapping below.
-                </p>
-                <p>📁 Your columns:
-                    <strong>${data.uploaded_columns.join(', ')}</strong>
-                </p>
-                ${data.missing_columns.length > 0
-                    ? `<p style="color:#f59e0b">
-                        ⚠️ Could not auto-detect:
-                        <strong>${data.missing_columns.join(', ')}</strong>.
-                        Please map them manually below.
-                       </p>`
-                    : `<p style="color:#10b981">
-                        ✅ All columns detected successfully!
-                       </p>`
-                }
-            `;
-
-            buildMappingTable(data.suggested_mapping);
-            mappingSection.style.display = 'block';
-
-            // Scroll down to show the mapping table
-            mappingSection.scrollIntoView({ behavior: 'smooth' });
-
-        } else {
+        if (!response.ok) {
             statusContent.innerHTML = `
                 <p class="status-error">
                     <i class="fas fa-times-circle"></i>
                     Error: ${data.error}
                 </p>`;
+            uploadBtn.disabled = false;
+            return;
+        }
+
+        if (data.perfect_match) {
+            // ── Perfect Match: go straight to dashboard ───────
+            statusContent.innerHTML = `
+                <p class="status-success">
+                    <i class="fas fa-check-circle"></i>
+                    All columns matched perfectly!
+                    ${data.rows} records loaded.
+                </p>
+                <p>Redirecting to dashboard...</p>
+            `;
+            setTimeout(() => {
+                window.location.href = 'dashboard.html';
+            }, 1500);
+
+        } else {
+            // ── Columns don't match: show mapping table ───────
+            uploadedFilename = data.filename;
+            uploadedColumns  = data.uploaded_columns;
+
+            statusContent.innerHTML = `
+                <p style="color:#f59e0b">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Column mismatch detected.</strong>
+                    Please map your columns below.
+                </p>
+                <p>Missing required columns:
+                    <strong>${data.missing_columns.join(', ')}</strong>
+                </p>
+            `;
+
+            // Build and show the mapping table
+            buildMappingTable(data.uploaded_columns);
+            mappingSection.style.display = 'block';
+
+            // Scroll down to mapping table
+            setTimeout(() => {
+                mappingSection.scrollIntoView({ behavior: 'smooth' });
+            }, 300);
         }
 
     } catch (err) {
         statusContent.innerHTML = `
             <p class="status-error">
                 <i class="fas fa-times-circle"></i>
-                Could not connect to server. Make sure the backend is running.
+                Could not connect to server.
+                Make sure the backend is running.
             </p>`;
     }
 
     uploadBtn.disabled = false;
 });
 
+
 // ── Build Mapping Table ───────────────────────────────────────
-function buildMappingTable(mapping) {
+// LEFT  = required/optional system column name
+// RIGHT = dropdown of columns from the uploaded file
+function buildMappingTable(uploadedCols) {
+    // Build dropdown options from uploaded file columns
+    const options = `
+        <option value="">-- Not in my file --</option>
+        ${uploadedCols.map(col => `
+            <option value="${col}">${col}</option>
+        `).join('')}
+    `;
+
+    // Try to auto-suggest a match for each system column
+    // by checking if names are similar
+    function autoSuggest(systemCol) {
+        const lower = systemCol.toLowerCase().replace('_', '');
+        const match = uploadedCols.find(c =>
+            c.toLowerCase().replace(/[^a-z]/g, '') === lower ||
+            c.toLowerCase().includes(lower) ||
+            lower.includes(c.toLowerCase())
+        );
+        return match || '';
+    }
+
     mappingTable.innerHTML = `
         <table class="mapping-tbl">
             <thead>
                 <tr>
-                    <th>Your Column Name</th>
-                    <th>Maps To (System Column)</th>
+                    <th>System Column (Required)</th>
+                    <th>Your File Column</th>
                 </tr>
             </thead>
             <tbody>
-                ${Object.entries(mapping).map(([col, mapped]) => `
+                <!-- Required columns -->
+                ${REQUIRED_COLUMNS.map(col => {
+                    const suggested = autoSuggest(col);
+                    return `
                     <tr>
-                        <td><strong>${col}</strong></td>
                         <td>
-                            <select class="map-select" data-col="${col}">
-                                <option value="">-- Skip this column --</option>
-                                ${EXPECTED_COLUMNS.map(ec => `
-                                    <option value="${ec}"
-                                        ${mapped === ec ? 'selected' : ''}>
-                                        ${ec}
+                            <strong>${col}</strong>
+                            <span class="required"> *</span>
+                        </td>
+                        <td>
+                            <select class="map-select" data-system="${col}">
+                                ${uploadedCols.map(uc => `
+                                    <option value="${uc}"
+                                        ${uc === suggested ? 'selected' : ''}>
+                                        ${uc}
+                                    </option>
+                                `).join('')}
+                                <option value=""
+                                    ${!suggested ? 'selected' : ''}>
+                                    -- Not in my file --
+                                </option>
+                            </select>
+                        </td>
+                    </tr>`;
+                }).join('')}
+
+                <!-- Divider for optional columns -->
+                <tr>
+                    <td colspan="2"
+                        style="background:#f1f5f9;
+                               color:#64748b;
+                               font-size:0.85rem;
+                               padding:0.5rem 1rem">
+                        Optional Columns (select if available in your file)
+                    </td>
+                </tr>
+
+                <!-- Optional columns -->
+                ${OPTIONAL_COLUMNS.map(col => {
+                    const suggested = autoSuggest(col);
+                    return `
+                    <tr>
+                        <td>
+                            <strong>${col}</strong>
+                            <span style="color:#64748b;
+                                         font-size:0.8rem">
+                                (optional)
+                            </span>
+                        </td>
+                        <td>
+                            <select class="map-select" data-system="${col}">
+                                <option value="">-- Not in my file --</option>
+                                ${uploadedCols.map(uc => `
+                                    <option value="${uc}"
+                                        ${uc === suggested ? 'selected' : ''}>
+                                        ${uc}
                                     </option>
                                 `).join('')}
                             </select>
                         </td>
-                    </tr>
-                `).join('')}
+                    </tr>`;
+                }).join('')}
             </tbody>
         </table>
+        <p style="color:#64748b; font-size:0.85rem; margin-top:0.5rem">
+            <i class="fas fa-info-circle"></i>
+            Any columns in your file not mapped here will be dropped.
+        </p>
     `;
 }
 
-// ── Confirm Mapping ───────────────────────────────────────────
+
+// ── Confirm Mapping Button ────────────────────────────────────
 document.getElementById('confirm-btn').addEventListener('click', async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
+    // Read all dropdown selections
     const selects = document.querySelectorAll('.map-select');
     const mapping = {};
+
     selects.forEach(sel => {
-        if (sel.value) mapping[sel.dataset.col] = sel.value;
+        const systemCol     = sel.dataset.system;
+        const uploadedCol   = sel.value;
+        if (uploadedCol) {
+            mapping[systemCol] = uploadedCol;
+        }
     });
 
+    // Validate all required columns are mapped
+    const unmapped = REQUIRED_COLUMNS.filter(col => !mapping[col]);
+    if (unmapped.length > 0) {
+        statusContent.innerHTML = `
+            <p class="status-error">
+                <i class="fas fa-times-circle"></i>
+                Please map these required columns:
+                <strong>${unmapped.join(', ')}</strong>
+            </p>`;
+        statusBox.style.display = 'block';
+        return;
+    }
+
+    // Show processing spinner
     statusContent.innerHTML = `
         <div class="spinner"></div>
         <p>Processing and cleaning your data...</p>`;
+    statusBox.style.display = 'block';
 
     try {
         const response = await fetch(`${API_BASE}/upload/confirm`, {
@@ -189,17 +317,21 @@ document.getElementById('confirm-btn').addEventListener('click', async (e) => {
                 <p class="status-success">
                     <i class="fas fa-check-circle"></i>
                     Data processed successfully!
+                    ${data.rows} records ready.
                 </p>
-                <p>📊 <strong>${data.rows}</strong> records ready for analysis</p>
-                <p>📁 Final columns: <strong>${data.columns.join(', ')}</strong></p>
-                <br>
-                <a href="dashboard.html" class="btn-primary">
-                    <i class="fas fa-chart-bar"></i> View Dashboard
-                </a>
+                <p>Redirecting to dashboard...</p>
             `;
+            // Redirect to dashboard after short delay
+            setTimeout(() => {
+                window.location.href = 'dashboard.html';
+            }, 1500);
+
         } else {
             statusContent.innerHTML = `
-                <p class="status-error">Error: ${data.error}</p>`;
+                <p class="status-error">
+                    <i class="fas fa-times-circle"></i>
+                    ${data.error}
+                </p>`;
         }
 
     } catch (err) {
