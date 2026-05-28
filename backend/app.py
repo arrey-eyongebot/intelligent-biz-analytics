@@ -1,8 +1,5 @@
 # ============================================================
 # app.py — Main Flask Application Entry Point
-#
-# Creates the Flask app, configures sessions, enables CORS,
-# and registers all route blueprints.
 # ============================================================
 
 from flask import Flask
@@ -17,18 +14,23 @@ import os
 
 app = Flask(__name__)
 
-# ── Secret Key for Sessions ──────────────────────────────────
-# Used to sign session cookies securely.
-# In production this should be a long random secret string
-# stored in an environment variable.
+# Secret key for signing session cookies
 app.secret_key = os.environ.get('SECRET_KEY', 'bizanalytics-secret-key-2025')
 
-# ── Enable CORS with session support ─────────────────────────
-# supports_credentials=True is required for session cookies
-# to work across different ports (frontend 5500, backend 5000)
-CORS(app, supports_credentials=True)
+# Session cookie settings
+# These are critical for sessions to work across ports
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['SESSION_COOKIE_SECURE']   = False  # False for local development
+app.config['SESSION_COOKIE_HTTPONLY'] = True
 
-# ── Register All Blueprints ───────────────────────────────────
+# Enable CORS with credentials support
+CORS(app,
+     supports_credentials=True,
+     origins=['http://127.0.0.1:5500',
+              'http://localhost:5500',
+              'http://127.0.0.1:5000'])
+
+# Register all blueprints
 app.register_blueprint(auth_bp,          url_prefix='/api/auth')
 app.register_blueprint(upload_bp,        url_prefix='/api/upload')
 app.register_blueprint(analysis_bp,      url_prefix='/api/analysis')
