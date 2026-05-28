@@ -48,7 +48,10 @@ uploadBox.addEventListener('drop', (e) => {
 });
 
 // ── Upload File ───────────────────────────────────────────────
-uploadBtn.addEventListener('click', async () => {
+uploadBtn.addEventListener('click', async (e) => {
+    e.preventDefault()  // Prevent any default browser behaviour
+    e.stopPropagation() // Stop event from bubbling up
+
     const file = fileInput.files[0];
     if (!file) return;
 
@@ -97,6 +100,9 @@ uploadBtn.addEventListener('click', async () => {
 
             buildMappingTable(data.suggested_mapping);
             mappingSection.style.display = 'block';
+
+            // Scroll down to show the mapping table
+            mappingSection.scrollIntoView({ behavior: 'smooth' });
 
         } else {
             statusContent.innerHTML = `
@@ -150,7 +156,9 @@ function buildMappingTable(mapping) {
 }
 
 // ── Confirm Mapping ───────────────────────────────────────────
-document.getElementById('confirm-btn').addEventListener('click', async () => {
+document.getElementById('confirm-btn').addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
 
     const selects = document.querySelectorAll('.map-select');
     const mapping = {};
