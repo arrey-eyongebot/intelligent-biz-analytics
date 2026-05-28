@@ -1,37 +1,17 @@
 // ============================================================
 // main.js — Home Page Upload & Column Mapping Logic
-//
-// This script handles the entire data upload workflow:
-//
-// STEP 1 — File Selection:
-//   User picks a file via Browse button or drag-and-drop.
-//   The filename is displayed and the Upload button activates.
-//
-// STEP 2 — Upload & Auto-Detect:
-//   File is sent to POST /api/upload/ which saves it and
-//   returns a suggested column mapping based on the file's
-//   column names. The mapping is shown in a confirmation table.
-//
-// STEP 3 — Confirm Mapping:
-//   User reviews and adjusts the mapping dropdowns if needed,
-//   then clicks Confirm. The confirmed mapping is sent to
-//   POST /api/upload/confirm which finalizes the cleaned data.
 // ============================================================
 
-// Base URL for all backend API calls
 const API_BASE = 'http://127.0.0.1:5000/api';
 
-// System columns shown in the mapping dropdown options
 const EXPECTED_COLUMNS = [
     'Customer_Name', 'Sex', 'Product', 'Category',
     'Quantity', 'Date', 'Unit_Price', 'Amount', 'Channel'
 ];
 
-// Stores state between Step 2 and Step 3
-let uploadedFilename = '';  // Filename of the uploaded file
-let currentMapping   = {};  // Auto-detected mapping result
+let uploadedFilename = '';
+let currentMapping   = {};
 
-// ── DOM Element References ────────────────────────────────────
 const fileInput      = document.getElementById('file-input');
 const uploadBtn      = document.getElementById('upload-btn');
 const fileNameEl     = document.getElementById('file-name');
@@ -40,9 +20,7 @@ const statusContent  = document.getElementById('status-content');
 const mappingSection = document.getElementById('mapping-section');
 const mappingTable   = document.getElementById('mapping-table');
 
-
-// ── STEP 1A: File Selected via Browse Button ──────────────────
-// When user picks a file, show its name and enable the upload btn
+// ── File Selected ─────────────────────────────────────────────
 fileInput.addEventListener('change', () => {
     const file = fileInput.files[0];
     if (file) {
@@ -51,17 +29,14 @@ fileInput.addEventListener('change', () => {
     }
 });
 
-
-// ── STEP 1B: Drag and Drop ────────────────────────────────────
+// ── Drag and Drop ─────────────────────────────────────────────
 const uploadBox = document.getElementById('upload-box');
 
-// Highlight box when a file is dragged over it
 uploadBox.addEventListener('dragover', (e) => {
-    e.preventDefault();  // Required to allow drop event
+    e.preventDefault();
     uploadBox.style.background = '#eff6ff';
 });
 
-// Handle file dropped onto the upload box
 uploadBox.addEventListener('drop', (e) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
@@ -72,14 +47,11 @@ uploadBox.addEventListener('drop', (e) => {
     }
 });
 
-
-// ── STEP 2: Upload File and Get Suggested Mapping ─────────────
-// Sends the file to the backend and shows the mapping table
+// ── Upload File ───────────────────────────────────────────────
 uploadBtn.addEventListener('click', async () => {
     const file = fileInput.files[0];
     if (!file) return;
 
-    // Show spinner while uploading
     statusBox.style.display      = 'block';
     statusContent.innerHTML      = `
         <div class="spinner"></div>
@@ -87,24 +59,22 @@ uploadBtn.addEventListener('click', async () => {
     uploadBtn.disabled           = true;
     mappingSection.style.display = 'none';
 
-    // Build multipart form data for file upload
     const formData = new FormData();
     formData.append('file', file);
 
     try {
         const response = await fetch(`${API_BASE}/upload/`, {
-            method: 'POST',
-            body:   formData
+            method:      'POST',
+            body:        formData,
+            credentials: 'include'
         });
 
         const data = await response.json();
 
         if (response.ok) {
-            // Store filename and mapping for Step 3
             uploadedFilename = data.filename;
             currentMapping   = data.suggested_mapping;
 
-            // Show upload summary and mapping instructions
             statusContent.innerHTML = `
                 <p class="status-success">
                     <i class="fas fa-check-circle"></i>
@@ -125,7 +95,6 @@ uploadBtn.addEventListener('click', async () => {
                 }
             `;
 
-            // Build and show the mapping confirmation table
             buildMappingTable(data.suggested_mapping);
             mappingSection.style.display = 'block';
 
@@ -148,10 +117,7 @@ uploadBtn.addEventListener('click', async () => {
     uploadBtn.disabled = false;
 });
 
-
-// ── Build Column Mapping Table ────────────────────────────────
-// Creates a table row per uploaded column with a dropdown
-// so the user can confirm or change the auto-detected match
+// ── Build Mapping Table ───────────────────────────────────────
 function buildMappingTable(mapping) {
     mappingTable.innerHTML = `
         <table class="mapping-tbl">
@@ -183,29 +149,25 @@ function buildMappingTable(mapping) {
     `;
 }
 
-
-// ── STEP 3: Confirm Mapping and Process Data ──────────────────
-// Reads the user's dropdown selections and sends them to the
-// backend to apply the mapping and save the cleaned data
+// ── Confirm Mapping ───────────────────────────────────────────
 document.getElementById('confirm-btn').addEventListener('click', async () => {
 
-    // Read all dropdown selections into a mapping object
     const selects = document.querySelectorAll('.map-select');
     const mapping = {};
     selects.forEach(sel => {
         if (sel.value) mapping[sel.dataset.col] = sel.value;
     });
 
-    // Show spinner while processing
     statusContent.innerHTML = `
         <div class="spinner"></div>
         <p>Processing and cleaning your data...</p>`;
 
     try {
         const response = await fetch(`${API_BASE}/upload/confirm`, {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({
+            method:      'POST',
+            headers:     { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body:        JSON.stringify({
                 filename: uploadedFilename,
                 mapping:  mapping
             })
@@ -214,7 +176,6 @@ document.getElementById('confirm-btn').addEventListener('click', async () => {
         const data = await response.json();
 
         if (response.ok) {
-            // Hide mapping table and show success with dashboard link
             mappingSection.style.display = 'none';
             statusContent.innerHTML = `
                 <p class="status-success">
