@@ -24,7 +24,7 @@ app.config['SESSION_COOKIE_SECURE']   = False  # False for local development
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 
 # Enable CORS with credentials support
-CCORS(app,
+CORS(app,
      supports_credentials=True,
      origins=['http://127.0.0.1:5500',
               'http://localhost:5500',
