@@ -24,12 +24,16 @@ app.config['SESSION_COOKIE_SECURE']   = False  # False for local development
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 
 # Enable CORS with credentials support
-CORS(app,
+CCORS(app,
      supports_credentials=True,
      origins=['http://127.0.0.1:5500',
               'http://localhost:5500',
-              'http://127.0.0.1:5000'])
-
+              'http://127.0.0.1:5501',
+              'http://localhost:5501',
+              'http://127.0.0.1:3000',
+              'http://localhost:3000',
+              'http://127.0.0.1:5000',
+              'null'])
 # Register all blueprints
 app.register_blueprint(auth_bp,          url_prefix='/api/auth')
 app.register_blueprint(upload_bp,        url_prefix='/api/upload')
