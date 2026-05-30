@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BizAnalytics — Intelligent Business Analytics</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- ── Navigation Bar ─────────────────────────────────────
+         Sticky top bar with brand name and page links.
+         The 'active' class highlights the current page link. -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <i class="fas fa-chart-line"></i>
+            <span>BizAnalytics</span>
+        </div>
+        <div class="nav-links">
+            <a href="index.html" class="active">Home</a>
+            <a href="dashboard.html">Dashboard</a>
+            <a href="predict.html">Predict</a>
+            <a href="advisory.html">Advisory</a>
+            <a href="transactions.html">Record Sale</a>
+        </div>
+    </nav>
+
+    <!-- ── Hero Section ───────────────────────────────────────
+         Full-width gradient banner introducing the system.  -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1>Intelligent Business Analytics</h1>
+            <p>
+                Upload your sales data and get powerful insights,
+                demand predictions, and AI-powered business advice.
+            </p>
+            <a href="#upload-section" class="btn-primary">
+                <i class="fas fa-rocket"></i> Get Started
+            </a>
+        </div>
+    </section>
+
+    <!-- ── Feature Cards ──────────────────────────────────────
+         Four cards summarizing the system's key features.   -->
+    <section class="features">
+        <div class="feature-card">
+            <i class="fas fa-chart-bar"></i>
+            <h3>Sales Analytics</h3>
+            <p>Visualize top products, sales trends, and customer behavior.</p>
+        </div>
+        <div class="feature-card">
+            <i class="fas fa-brain"></i>
+            <h3>Demand Prediction</h3>
+            <p>Use machine learning to predict demand and plan restocking.</p>
+        </div>
+        <div class="feature-card">
+            <i class="fas fa-robot"></i>
+            <h3>AI Advisory</h3>
+            <p>Chat with an AI advisor that knows your business data.</p>
+        </div>
+        <div class="feature-card">
+            <i class="fas fa-pen"></i>
+            <h3>Record Sales</h3>
+            <p>Manually enter transactions directly on the web app.</p>
+        </div>
+    </section>
+
+    <!-- ── Upload Section ─────────────────────────────────────
+         File upload area with drag-and-drop support.
+         After upload, a column mapping table is shown.      -->
+    <section class="upload-section" id="upload-section">
+        <h2>Upload Your Sales Data</h2>
+        <p>Supported formats: CSV, Excel (.xlsx) — any column names accepted</p>
+
+        <!-- Drag and drop / browse upload box -->
+        <div class="upload-box" id="upload-box">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p>Drag &amp; drop your file here or</p>
+            <label for="file-input" class="btn-primary">Browse File</label>
+            <!-- Hidden file input triggered by the label above -->
+            <input type="file" id="file-input"
+                   accept=".csv,.xlsx,.xls" hidden>
+            <p class="file-name" id="file-name">No file selected</p>
+        </div>
+
+        <!-- Upload button (disabled until file is selected) -->
+        <button class="btn-primary" id="upload-btn" disabled>
+            <i class="fas fa-upload"></i> Upload &amp; Detect Columns
+        </button>
+
+        <!-- Status messages shown after upload attempt -->
+        <div class="status-box" id="status-box" style="display:none;">
+            <div id="status-content"></div>
+        </div>
+
+        <!-- Column mapping section shown after successful upload.
+             Hidden by default; revealed by main.js after upload. -->
+        <div id="mapping-section" style="display:none;">
+            <h3 style="margin: 1.5rem 0 1rem;">
+                <i class="fas fa-columns"></i> Confirm Column Mapping
+            </h3>
+            <p style="color:#64748b; margin-bottom:1rem;">
+                We detected the following column matches.
+                Please correct any that are wrong before proceeding.
+            </p>
+            <!-- Mapping table injected here by main.js -->
+            <div id="mapping-table"></div>
+            <button class="btn-primary" id="confirm-btn"
+                    style="margin-top:1rem">
+                <i class="fas fa-check"></i> Confirm &amp; Analyze
+            </button>
+        </div>
+    </section>
+
+    <!-- ── Footer ─────────────────────────────────────────── -->
+    <footer class="footer">
+        <p>Built by Brian Arrey — Computer Engineering &copy; 2025</p>
+    </footer>
+
+    <!-- Main upload and mapping logic -->
+   <script src="js/auth.js"></script>
+<script>
+// Wait for full page load before running main.js
+// This prevents auth.js redirect from interfering
+// with the upload button logic
+window.addEventListener('load', function() {
+    const script = document.createElement('script');
+    script.src = 'js/main.js';
+    document.body.appendChild(script);
+});
+</script>
+</body>
+</html>

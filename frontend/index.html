@@ -10,15 +10,12 @@
 </head>
 <body>
 
-    <!-- ── Navigation Bar ─────────────────────────────────────
-         Sticky top bar with brand name and page links.
-         The 'active' class highlights the current page link. -->
     <nav class="navbar">
         <div class="nav-brand">
             <i class="fas fa-chart-line"></i>
             <span>BizAnalytics</span>
         </div>
-        <div class="nav-links">
+        <div class="nav-links" id="nav-links">
             <a href="index.html" class="active">Home</a>
             <a href="dashboard.html">Dashboard</a>
             <a href="predict.html">Predict</a>
@@ -27,8 +24,6 @@
         </div>
     </nav>
 
-    <!-- ── Hero Section ───────────────────────────────────────
-         Full-width gradient banner introducing the system.  -->
     <section class="hero">
         <div class="hero-content">
             <h1>Intelligent Business Analytics</h1>
@@ -42,8 +37,6 @@
         </div>
     </section>
 
-    <!-- ── Feature Cards ──────────────────────────────────────
-         Four cards summarizing the system's key features.   -->
     <section class="features">
         <div class="feature-card">
             <i class="fas fa-chart-bar"></i>
@@ -67,69 +60,404 @@
         </div>
     </section>
 
-    <!-- ── Upload Section ─────────────────────────────────────
-         File upload area with drag-and-drop support.
-         After upload, a column mapping table is shown.      -->
     <section class="upload-section" id="upload-section">
         <h2>Upload Your Sales Data</h2>
         <p>Supported formats: CSV, Excel (.xlsx) — any column names accepted</p>
 
-        <!-- Drag and drop / browse upload box -->
         <div class="upload-box" id="upload-box">
             <i class="fas fa-cloud-upload-alt"></i>
             <p>Drag &amp; drop your file here or</p>
             <label for="file-input" class="btn-primary">Browse File</label>
-            <!-- Hidden file input triggered by the label above -->
             <input type="file" id="file-input"
                    accept=".csv,.xlsx,.xls" hidden>
             <p class="file-name" id="file-name">No file selected</p>
         </div>
 
-        <!-- Upload button (disabled until file is selected) -->
-        <button class="btn-primary" id="upload-btn" disabled>
+        <!-- type="button" is CRITICAL — prevents any form submission -->
+        <button type="button" class="btn-primary" id="upload-btn" disabled>
             <i class="fas fa-upload"></i> Upload &amp; Detect Columns
         </button>
 
-        <!-- Status messages shown after upload attempt -->
         <div class="status-box" id="status-box" style="display:none;">
             <div id="status-content"></div>
         </div>
 
-        <!-- Column mapping section shown after successful upload.
-             Hidden by default; revealed by main.js after upload. -->
         <div id="mapping-section" style="display:none;">
-            <h3 style="margin: 1.5rem 0 1rem;">
+            <h3 style="margin:1.5rem 0 1rem;">
                 <i class="fas fa-columns"></i> Confirm Column Mapping
             </h3>
             <p style="color:#64748b; margin-bottom:1rem;">
-                We detected the following column matches.
-                Please correct any that are wrong before proceeding.
+                Map each required system column to the matching
+                column in your uploaded file.
+                Columns not mapped will be dropped automatically.
             </p>
-            <!-- Mapping table injected here by main.js -->
             <div id="mapping-table"></div>
-            <button class="btn-primary" id="confirm-btn"
+            <!-- type="button" is CRITICAL — prevents page reload -->
+            <button type="button" class="btn-primary" id="confirm-btn"
                     style="margin-top:1rem">
                 <i class="fas fa-check"></i> Confirm &amp; Analyze
             </button>
         </div>
     </section>
 
-    <!-- ── Footer ─────────────────────────────────────────── -->
     <footer class="footer">
         <p>Built by Brian Arrey — Computer Engineering &copy; 2025</p>
     </footer>
 
-    <!-- Main upload and mapping logic -->
-   <script src="js/auth.js"></script>
-<script>
-// Wait for full page load before running main.js
-// This prevents auth.js redirect from interfering
-// with the upload button logic
-window.addEventListener('load', function() {
-    const script = document.createElement('script');
-    script.src = 'js/main.js';
-    document.body.appendChild(script);
-});
-</script>
+    <script>
+    // ============================================================
+    // index.html inline script
+    // All JS is here to avoid loading order issues between files.
+    // ============================================================
+
+    const API_BASE = 'http://127.0.0.1:5000/api';
+
+    // Required system columns — must all be mapped
+    const REQUIRED_COLUMNS = [
+        'Product', 'Category', 'Quantity',
+        'Date', 'Unit_Price', 'Amount', 'Channel'
+    ];
+
+    // Optional system columns — mapped only if available
+    const OPTIONAL_COLUMNS = ['Customer_Name', 'Sex'];
+
+    // Upload state
+    let uploadedFilename = '';
+    let uploadedColumns  = [];
+
+    // ── Step 1: Auth Check ────────────────────────────────────
+    // Check localStorage for saved user — no async, no redirect race
+    (function checkAuth() {
+        const saved = localStorage.getItem('bizuser');
+        if (!saved) {
+            window.location.replace('login.html');
+            return;
+        }
+        // Show user in navbar immediately
+        try {
+            const user    = JSON.parse(saved);
+            const navLinks = document.getElementById('nav-links');
+            if (!navLinks) return;
+            const el = document.createElement('div');
+            el.className = 'nav-user';
+            el.innerHTML = `
+                <span class="nav-username">
+                    <i class="fas fa-user-circle"></i> ${user.name}
+                </span>
+                <button type="button" class="nav-logout-btn"
+                        onclick="handleLogout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>`;
+            navLinks.appendChild(el);
+        } catch(e) {
+            window.location.replace('login.html');
+        }
+    })();
+
+    // ── Logout ────────────────────────────────────────────────
+    async function handleLogout() {
+        try {
+            await fetch(`${API_BASE}/auth/logout`, {
+                method: 'POST', credentials: 'include'
+            });
+        } catch(e) {}
+        localStorage.removeItem('bizuser');
+        window.location.replace('login.html');
+    }
+
+    // ── DOM References ────────────────────────────────────────
+    const fileInput      = document.getElementById('file-input');
+    const uploadBtn      = document.getElementById('upload-btn');
+    const fileNameEl     = document.getElementById('file-name');
+    const statusBox      = document.getElementById('status-box');
+    const statusContent  = document.getElementById('status-content');
+    const mappingSection = document.getElementById('mapping-section');
+    const mappingTable   = document.getElementById('mapping-table');
+    const confirmBtn     = document.getElementById('confirm-btn');
+
+    // ── File Selected ─────────────────────────────────────────
+    fileInput.addEventListener('change', function() {
+        const file = fileInput.files[0];
+        if (file) {
+            fileNameEl.textContent = file.name;
+            uploadBtn.disabled     = false;
+        }
+    });
+
+    // ── Drag and Drop ─────────────────────────────────────────
+    const uploadBox = document.getElementById('upload-box');
+
+    uploadBox.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadBox.style.background = '#eff6ff';
+    });
+
+    uploadBox.addEventListener('dragleave', function() {
+        uploadBox.style.background = '';
+    });
+
+    uploadBox.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadBox.style.background = '';
+        const file = e.dataTransfer.files[0];
+        if (file) {
+            fileInput.files        = e.dataTransfer.files;
+            fileNameEl.textContent = file.name;
+            uploadBtn.disabled     = false;
+        }
+    });
+
+    // ── Upload Button ─────────────────────────────────────────
+    // type="button" on the HTML element already prevents reload
+    // but we also call e.preventDefault() as double safety
+    uploadBtn.addEventListener('click', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        // Show spinner
+        statusBox.style.display      = 'block';
+        statusContent.innerHTML      = `
+            <div class="spinner"></div>
+            <p>Uploading and checking columns...</p>`;
+        uploadBtn.disabled           = true;
+        mappingSection.style.display = 'none';
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res  = await fetch(`${API_BASE}/upload/`, {
+                method:      'POST',
+                body:        formData,
+                credentials: 'include'
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                statusContent.innerHTML = `
+                    <p class="status-error">
+                        <i class="fas fa-times-circle"></i>
+                        Error: ${data.error}
+                    </p>`;
+                uploadBtn.disabled = false;
+                return;
+            }
+
+            if (data.perfect_match) {
+                // ── Perfect match: go to dashboard ────────────
+                statusContent.innerHTML = `
+                    <p class="status-success">
+                        <i class="fas fa-check-circle"></i>
+                        All columns matched perfectly!
+                        ${data.rows} records loaded.
+                        Redirecting to dashboard...
+                    </p>`;
+                setTimeout(function() {
+                    window.location.href = 'dashboard.html';
+                }, 1500);
+
+            } else {
+                // ── Mismatch: show mapping table ───────────────
+                uploadedFilename = data.filename;
+                uploadedColumns  = data.uploaded_columns;
+
+                statusContent.innerHTML = `
+                    <p style="color:#f59e0b">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Column mismatch detected.</strong>
+                        Please map your columns in the table below.
+                    </p>
+                    <p>Missing:
+                        <strong>${data.missing_columns.join(', ')}</strong>
+                    </p>`;
+
+                buildMappingTable(data.uploaded_columns);
+                mappingSection.style.display = 'block';
+                setTimeout(function() {
+                    mappingSection.scrollIntoView({ behavior: 'smooth' });
+                }, 300);
+            }
+
+        } catch (err) {
+            statusContent.innerHTML = `
+                <p class="status-error">
+                    <i class="fas fa-times-circle"></i>
+                    Could not connect to server.
+                    Make sure the backend is running.
+                </p>`;
+        }
+
+        uploadBtn.disabled = false;
+    });
+
+    // ── Build Mapping Table ───────────────────────────────────
+    // LEFT  = system column (fixed label)
+    // RIGHT = dropdown of columns from the uploaded file
+    function buildMappingTable(cols) {
+
+        // Try to auto-suggest best match for each system column
+        function autoSuggest(systemCol) {
+            const lower = systemCol.toLowerCase().replace(/_/g, '');
+            return cols.find(function(c) {
+                const cl = c.toLowerCase().replace(/[^a-z]/g, '');
+                return cl === lower ||
+                       cl.includes(lower) ||
+                       lower.includes(cl);
+            }) || '';
+        }
+
+        mappingTable.innerHTML = `
+            <table class="mapping-tbl">
+                <thead>
+                    <tr>
+                        <th>System Column</th>
+                        <th>Your File Column</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${REQUIRED_COLUMNS.map(function(col) {
+                        const sug = autoSuggest(col);
+                        return `
+                        <tr>
+                            <td>
+                                <strong>${col}</strong>
+                                <span class="required"> *</span>
+                            </td>
+                            <td>
+                                <select class="map-select"
+                                        data-system="${col}">
+                                    <option value="">
+                                        -- Not in my file --
+                                    </option>
+                                    ${cols.map(function(c) {
+                                        return `<option value="${c}"
+                                            ${c === sug ? 'selected':''}>
+                                            ${c}
+                                        </option>`;
+                                    }).join('')}
+                                </select>
+                            </td>
+                        </tr>`;
+                    }).join('')}
+                    <tr>
+                        <td colspan="2"
+                            style="background:#f1f5f9;color:#64748b;
+                                   font-size:0.85rem;padding:0.5rem 1rem">
+                            Optional Columns
+                        </td>
+                    </tr>
+                    ${OPTIONAL_COLUMNS.map(function(col) {
+                        const sug = autoSuggest(col);
+                        return `
+                        <tr>
+                            <td>
+                                <strong>${col}</strong>
+                                <span style="color:#64748b;font-size:0.8rem">
+                                    (optional)
+                                </span>
+                            </td>
+                            <td>
+                                <select class="map-select"
+                                        data-system="${col}">
+                                    <option value="">
+                                        -- Not in my file --
+                                    </option>
+                                    ${cols.map(function(c) {
+                                        return `<option value="${c}"
+                                            ${c === sug ? 'selected':''}>
+                                            ${c}
+                                        </option>`;
+                                    }).join('')}
+                                </select>
+                            </td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+            <p style="color:#64748b;font-size:0.85rem;margin-top:0.5rem">
+                <i class="fas fa-info-circle"></i>
+                Columns not mapped here will be dropped automatically.
+            </p>`;
+    }
+
+    // ── Confirm Mapping Button ────────────────────────────────
+    confirmBtn.addEventListener('click', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Read dropdown selections
+        const selects = document.querySelectorAll('.map-select');
+        const mapping = {};
+        selects.forEach(function(sel) {
+            if (sel.value) mapping[sel.dataset.system] = sel.value;
+        });
+
+        // Validate all required columns are mapped
+        const unmapped = REQUIRED_COLUMNS.filter(function(col) {
+            return !mapping[col];
+        });
+
+        if (unmapped.length > 0) {
+            statusBox.style.display = 'block';
+            statusContent.innerHTML = `
+                <p class="status-error">
+                    <i class="fas fa-times-circle"></i>
+                    Please map these required columns:
+                    <strong>${unmapped.join(', ')}</strong>
+                </p>`;
+            return;
+        }
+
+        // Show processing spinner
+        statusBox.style.display = 'block';
+        statusContent.innerHTML = `
+            <div class="spinner"></div>
+            <p>Processing and cleaning your data...</p>`;
+
+        try {
+            const res = await fetch(`${API_BASE}/upload/confirm`, {
+                method:      'POST',
+                headers:     { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body:        JSON.stringify({
+                    filename: uploadedFilename,
+                    mapping:  mapping
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                mappingSection.style.display = 'none';
+                statusContent.innerHTML = `
+                    <p class="status-success">
+                        <i class="fas fa-check-circle"></i>
+                        Data processed! ${data.rows} records ready.
+                        Redirecting to dashboard...
+                    </p>`;
+                setTimeout(function() {
+                    window.location.href = 'dashboard.html';
+                }, 1500);
+            } else {
+                statusContent.innerHTML = `
+                    <p class="status-error">
+                        <i class="fas fa-times-circle"></i>
+                        ${data.error}
+                    </p>`;
+            }
+
+        } catch (err) {
+            statusContent.innerHTML = `
+                <p class="status-error">
+                    Could not connect to server.
+                </p>`;
+        }
+    });
+
+    </script>
 </body>
 </html>
