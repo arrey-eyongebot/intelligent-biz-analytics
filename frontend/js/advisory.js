@@ -17,7 +17,7 @@
 // ============================================================
 
 // Base URL for all API calls
-const API_BASE = 'http://127.0.0.1:5000/api';
+const API_BASE = window.location.origin + '/api';
 
 // Stores the full conversation history for multi-turn memory.
 // Each item: { role: 'user' | 'assistant', content: '...' }

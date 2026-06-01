@@ -1,0 +1,25 @@
+# ============================================================
+# docker-compose.yml — Local Docker orchestration
+#
+# Allows running the full app locally with Docker using:
+#   docker-compose up
+#
+# Defines the backend service, environment variables,
+# port mapping and volume for persistent data storage.
+# ============================================================
+
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - SECRET_KEY=${SECRET_KEY}
+    volumes:
+      # Mount data folder so uploads persist between restarts
+      - ./data:/app/data
+      - ./models:/app/models
+    restart: unless-stopped
