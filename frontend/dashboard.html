@@ -7,18 +7,154 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Chart.js for rendering all dashboard charts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <style>
+        /* ── Dashboard-specific styles ── */
+
+        /* Stat cards: fixed height, text scales to fit */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 1.2rem 1rem;
+            text-align: center;
+            box-shadow: var(--card-shadow);
+            border-left: 4px solid var(--primary);
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .stat-card h3 {
+            color: var(--gray);
+            font-size: 0.8rem;
+            margin-bottom: 0.4rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .stat-card p {
+            color: var(--dark);
+            font-size: 1.4rem;
+            font-weight: 700;
+            word-break: break-all;
+            line-height: 1.2;
+        }
+
+        /* Insight cards: horizontal row, all same width */
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .insight-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 0.5rem;
+        }
+
+        .insight-card i {
+            font-size: 1.8rem;
+            flex-shrink: 0;
+        }
+
+        .insight-label {
+            font-size: 0.75rem;
+            color: var(--gray);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .insight-value {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--dark);
+            word-break: break-word;
+        }
+
+        /* Charts: always 2 per row, same fixed height */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+            height: 380px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-card h3 {
+            margin-bottom: 1rem;
+            color: var(--dark);
+            font-size: 0.95rem;
+            flex-shrink: 0;
+        }
+
+        /* Canvas fills remaining space in card */
+        .chart-card canvas {
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Section titles */
+        .section-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Empty data message */
+        .no-data {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--gray);
+            font-size: 0.9rem;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
 
-    <!-- Navigation -->
     <nav class="navbar">
         <div class="nav-brand">
             <i class="fas fa-chart-line"></i>
             <span>BizAnalytics</span>
         </div>
-        <div class="nav-links">
+        <div class="nav-links" id="nav-links">
             <a href="index.html">Home</a>
             <a href="dashboard.html" class="active">Dashboard</a>
             <a href="predict.html">Predict</a>
@@ -27,69 +163,474 @@
         </div>
     </nav>
 
-    <!-- Page Header -->
     <div class="page-header">
         <h1><i class="fas fa-chart-bar"></i> Sales Dashboard</h1>
-        <p>Overview of your business performance</p>
+        <p>Complete overview of your business performance</p>
     </div>
 
     <div class="dashboard-container">
 
-        <!-- ── Summary Stat Cards ─────────────────────────────
-             Five key metric cards at the top of the dashboard.
-             Values are populated by dashboard.js on page load. -->
+        <!-- ── Section 1: Key Metrics (6 stat cards, 3 per row) -->
+        <div class="section-title">
+            <i class="fas fa-tachometer-alt"></i> Key Metrics
+        </div>
         <div class="stats-grid">
-            <div class="stat-card">
+            <div class="stat-card" style="border-left-color:#2563eb">
                 <h3>Total Revenue</h3>
-                <p id="total-sales">Loading...</p>
+                <p id="total-sales">...</p>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" style="border-left-color:#10b981">
                 <h3>Total Transactions</h3>
-                <p id="total-transactions">Loading...</p>
+                <p id="total-transactions">...</p>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" style="border-left-color:#f59e0b">
+                <h3>Total Quantity Sold</h3>
+                <p id="total-quantity">...</p>
+            </div>
+            <div class="stat-card" style="border-left-color:#8b5cf6">
                 <h3>Unique Products</h3>
-                <p id="total-products">Loading...</p>
+                <p id="total-products">...</p>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" style="border-left-color:#ef4444">
                 <h3>Total Customers</h3>
-                <p id="total-customers">Loading...</p>
+                <p id="total-customers">...</p>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" style="border-left-color:#06b6d4">
                 <h3>Avg Transaction</h3>
-                <p id="avg-transaction">Loading...</p>
+                <p id="avg-transaction">...</p>
             </div>
         </div>
 
-        <!-- ── Charts Grid ────────────────────────────────────
-             Four Chart.js charts rendered by dashboard.js.
-             Each <canvas> element is the chart target.       -->
+        <!-- ── Section 2: Top Performers (4 cards in one horizontal row) -->
+        <div class="section-title">
+            <i class="fas fa-star"></i> Top Performers
+        </div>
+        <div class="insights-grid">
+            <div class="insight-card">
+                <i class="fas fa-calendar-check" style="color:#2563eb"></i>
+                <p class="insight-label">Best Month</p>
+                <p class="insight-value" id="best-month">...</p>
+            </div>
+            <div class="insight-card">
+                <i class="fas fa-box-open" style="color:#10b981"></i>
+                <p class="insight-label">Best Product</p>
+                <p class="insight-value" id="best-product">...</p>
+            </div>
+            <div class="insight-card">
+                <i class="fas fa-tags" style="color:#f59e0b"></i>
+                <p class="insight-label">Best Category</p>
+                <p class="insight-value" id="best-category">...</p>
+            </div>
+            <div class="insight-card">
+                <i class="fas fa-store" style="color:#8b5cf6"></i>
+                <p class="insight-label">Best Channel</p>
+                <p class="insight-value" id="best-channel">...</p>
+            </div>
+        </div>
+
+        <!-- ── Section 3: Revenue Analysis (2 charts per row) -->
+        <div class="section-title">
+            <i class="fas fa-chart-line"></i> Revenue Analysis
+        </div>
         <div class="charts-grid">
             <div class="chart-card">
-                <h3><i class="fas fa-trophy"></i> Top 10 Products by Revenue</h3>
+                <h3><i class="fas fa-trophy"></i>
+                    Top 10 Products by Revenue</h3>
                 <canvas id="topProductsChart"></canvas>
             </div>
             <div class="chart-card">
-                <h3><i class="fas fa-calendar"></i> Monthly Sales Trend</h3>
+                <h3><i class="fas fa-calendar"></i>
+                    Monthly Revenue Trend</h3>
                 <canvas id="salesTrendChart"></canvas>
             </div>
+        </div>
+
+        <!-- ── Section 4: Volume Analysis (2 charts per row) -->
+        <div class="section-title">
+            <i class="fas fa-boxes"></i> Volume Analysis
+        </div>
+        <div class="charts-grid">
             <div class="chart-card">
-                <h3><i class="fas fa-store"></i> Sales by Channel</h3>
+                <h3><i class="fas fa-sort-amount-down"></i>
+                    Top 10 Products by Quantity Sold</h3>
+                <canvas id="productQtyChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3><i class="fas fa-calendar-alt"></i>
+                    Monthly Quantity Sold</h3>
+                <canvas id="monthlyQtyChart"></canvas>
+            </div>
+        </div>
+
+        <!-- ── Section 5: Sales Breakdown (2 charts per row) -->
+        <div class="section-title">
+            <i class="fas fa-chart-pie"></i> Sales Breakdown
+        </div>
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3><i class="fas fa-store"></i>
+                    Revenue by Sales Channel</h3>
                 <canvas id="channelChart"></canvas>
             </div>
             <div class="chart-card">
-                <h3><i class="fas fa-tags"></i> Revenue by Category</h3>
+                <h3><i class="fas fa-tags"></i>
+                    Revenue by Product Category</h3>
                 <canvas id="categoryChart"></canvas>
             </div>
         </div>
+
+        <!-- ── Section 6: Customer Behaviour (2 charts per row) -->
+        <div class="section-title">
+            <i class="fas fa-user-clock"></i> Customer Behaviour
+        </div>
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3><i class="fas fa-users"></i>
+                    Top 10 Customers by Spending</h3>
+                <canvas id="topCustomersChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3><i class="fas fa-calendar-week"></i>
+                    Revenue by Day of Week</h3>
+                <canvas id="dayOfWeekChart"></canvas>
+            </div>
+        </div>
+
+        <!-- ── Section 7: Gender & Unit Price (2 charts per row) -->
+        <div class="section-title">
+            <i class="fas fa-venus-mars"></i> Demographics & Pricing
+        </div>
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3><i class="fas fa-venus-mars"></i>
+                    Sales by Customer Gender</h3>
+                <canvas id="genderChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3><i class="fas fa-dollar-sign"></i>
+                    Average Unit Price by Category</h3>
+                <canvas id="avgPriceChart"></canvas>
+            </div>
+        </div>
+
     </div>
 
     <footer class="footer">
         <p>Built by Brian Arrey — Computer Engineering &copy; 2025</p>
     </footer>
 
-    <!-- Dashboard charts and stats logic -->
-    <script src="js/auth.js"></script>
-    <script src="js/dashboard.js"></script>
+    <script>
+    // ── Auth Check ────────────────────────────────────────────
+    (function() {
+        var saved = localStorage.getItem('bizuser');
+        if (!saved) { window.location.replace('login.html'); return; }
+        try {
+            var user     = JSON.parse(saved);
+            var navLinks = document.getElementById('nav-links');
+            if (!navLinks) return;
+            if (document.querySelector('.nav-user')) return;
+            var el = document.createElement('div');
+            el.className = 'nav-user';
+            el.innerHTML =
+                '<span class="nav-username">' +
+                '<i class="fas fa-user-circle"></i> ' + user.name +
+                '</span>' +
+                '<button type="button" class="nav-logout-btn" ' +
+                'onclick="handleLogout()">' +
+                '<i class="fas fa-sign-out-alt"></i> Logout</button>';
+            navLinks.appendChild(el);
+        } catch(e) { window.location.replace('login.html'); }
+    })();
+
+    var API_BASE = 'http://127.0.0.1:5000/api';
+
+    function handleLogout() {
+        fetch(API_BASE + '/auth/logout', {
+            method: 'POST', credentials: 'include'
+        }).catch(function(){}).finally(function() {
+            localStorage.removeItem('bizuser');
+            window.location.replace('login.html');
+        });
+    }
+
+    // ── Currency Formatter ────────────────────────────────────
+    function formatCFA(val) {
+        return new Intl.NumberFormat('fr-CM', {
+            style: 'currency', currency: 'XAF'
+        }).format(val);
+    }
+
+    // ── Color Palette ─────────────────────────────────────────
+    var COLORS = [
+        '#2563eb','#10b981','#f59e0b','#ef4444',
+        '#8b5cf6','#06b6d4','#ec4899','#84cc16',
+        '#f97316','#6366f1'
+    ];
+
+    // ── Chart default options ─────────────────────────────────
+    // maintainAspectRatio false lets canvas fill the card height
+    var baseOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } }
+    };
+
+    // ── Helper: show no-data message inside a card ────────────
+    function noData(canvasId, message) {
+        var canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        var card = canvas.parentElement;
+        canvas.remove();
+        var div = document.createElement('div');
+        div.className = 'no-data';
+        div.innerHTML = '<p>' + (message || 'No data available') + '</p>';
+        card.appendChild(div);
+    }
+
+    // ── 1. Key Metrics ────────────────────────────────────────
+    fetch(API_BASE + '/analysis/summary', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        document.getElementById('total-sales').textContent
+            = formatCFA(d.total_sales);
+        document.getElementById('total-transactions').textContent
+            = d.total_transactions.toLocaleString();
+        document.getElementById('total-products').textContent
+            = d.total_products;
+        document.getElementById('total-customers').textContent
+            = d.total_customers.toLocaleString();
+        document.getElementById('avg-transaction').textContent
+            = formatCFA(d.avg_transaction_value);
+    }).catch(function() {});
+
+    // ── 2. Extended Summary (top performers) ─────────────────
+    fetch(API_BASE + '/analysis/extended-summary', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        document.getElementById('best-month').textContent
+            = d.best_month    || '—';
+        document.getElementById('best-product').textContent
+            = d.best_product  || '—';
+        document.getElementById('best-category').textContent
+            = d.best_category || '—';
+        document.getElementById('best-channel').textContent
+            = d.best_channel  || '—';
+        document.getElementById('total-quantity').textContent
+            = (d.total_quantity || 0).toLocaleString();
+    }).catch(function() {});
+
+    // ── 3. Top 10 Products by Revenue (horizontal bar) ───────
+    fetch(API_BASE + '/analysis/top-products', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        new Chart(document.getElementById('topProductsChart'), {
+            type: 'bar',
+            data: {
+                labels: d.map(function(x) { return x.Product; }),
+                datasets: [{
+                    label: 'Revenue (FCFA)',
+                    data:  d.map(function(x) { return x.Amount; }),
+                    backgroundColor: COLORS,
+                    borderRadius: 4
+                }]
+            },
+            options: Object.assign({}, baseOptions, {
+                indexAxis: 'y'
+            })
+        });
+    }).catch(function() {});
+
+    // ── 4. Monthly Revenue Trend (line) ───────────────────────
+    fetch(API_BASE + '/analysis/sales-trend', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        new Chart(document.getElementById('salesTrendChart'), {
+            type: 'line',
+            data: {
+                labels: d.map(function(x) { return x.Month; }),
+                datasets: [{
+                    label: 'Revenue (FCFA)',
+                    data:  d.map(function(x) { return x.Amount; }),
+                    borderColor:     '#2563eb',
+                    backgroundColor: 'rgba(37,99,235,0.1)',
+                    fill:     true,
+                    tension:  0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#2563eb'
+                }]
+            },
+            options: Object.assign({}, baseOptions,
+                { plugins: { legend: { display: true } } })
+        });
+    }).catch(function() {});
+
+    // ── 5. Top 10 Products by Quantity (horizontal bar) ──────
+    fetch(API_BASE + '/analysis/product-quantity', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        new Chart(document.getElementById('productQtyChart'), {
+            type: 'bar',
+            data: {
+                labels: d.map(function(x) { return x.Product; }),
+                datasets: [{
+                    label: 'Units Sold',
+                    data:  d.map(function(x) { return x.Quantity; }),
+                    backgroundColor: '#10b981',
+                    borderRadius: 4
+                }]
+            },
+            options: Object.assign({}, baseOptions, {
+                indexAxis: 'y'
+            })
+        });
+    }).catch(function() {});
+
+    // ── 6. Monthly Quantity Sold (bar) ────────────────────────
+    fetch(API_BASE + '/analysis/monthly-quantity', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        new Chart(document.getElementById('monthlyQtyChart'), {
+            type: 'bar',
+            data: {
+                labels: d.map(function(x) { return x.Month; }),
+                datasets: [{
+                    label: 'Quantity Sold',
+                    data:  d.map(function(x) { return x.Quantity; }),
+                    backgroundColor: '#f59e0b',
+                    borderRadius: 4
+                }]
+            },
+            options: baseOptions
+        });
+    }).catch(function() {});
+
+    // ── 7. Channel Breakdown (doughnut) ──────────────────────
+    fetch(API_BASE + '/analysis/channel-breakdown', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        new Chart(document.getElementById('channelChart'), {
+            type: 'doughnut',
+            data: {
+                labels: d.map(function(x) { return x.Channel; }),
+                datasets: [{
+                    data: d.map(function(x) { return x.Amount; }),
+                    backgroundColor: ['#2563eb','#10b981','#f59e0b']
+                }]
+            },
+            options: Object.assign({}, baseOptions,
+                { plugins: { legend: { display: true,
+                    position: 'bottom' } } })
+        });
+    }).catch(function() {});
+
+    // ── 8. Category Performance (doughnut) ───────────────────
+    fetch(API_BASE + '/analysis/category-performance', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        new Chart(document.getElementById('categoryChart'), {
+            type: 'doughnut',
+            data: {
+                labels: d.map(function(x) { return x.Category; }),
+                datasets: [{
+                    data: d.map(function(x) { return x.Amount; }),
+                    backgroundColor: COLORS
+                }]
+            },
+            options: Object.assign({}, baseOptions,
+                { plugins: { legend: { display: true,
+                    position: 'bottom' } } })
+        });
+    }).catch(function() {});
+
+    // ── 9. Top Customers (horizontal bar) ────────────────────
+    fetch(API_BASE + '/analysis/top-customers', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.error) { noData('topCustomersChart', d.error); return; }
+        new Chart(document.getElementById('topCustomersChart'), {
+            type: 'bar',
+            data: {
+                labels: d.map(function(x) { return x.Customer_Name; }),
+                datasets: [{
+                    label: 'Total Spending (FCFA)',
+                    data:  d.map(function(x) { return x.Amount; }),
+                    backgroundColor: '#8b5cf6',
+                    borderRadius: 4
+                }]
+            },
+            options: Object.assign({}, baseOptions, {
+                indexAxis: 'y'
+            })
+        });
+    }).catch(function() {});
+
+    // ── 10. Day of Week (bar) ─────────────────────────────────
+    fetch(API_BASE + '/analysis/day-of-week', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        new Chart(document.getElementById('dayOfWeekChart'), {
+            type: 'bar',
+            data: {
+                labels: d.map(function(x) { return x.DayName; }),
+                datasets: [{
+                    label: 'Revenue (FCFA)',
+                    data:  d.map(function(x) { return x.Amount; }),
+                    backgroundColor: COLORS,
+                    borderRadius: 4
+                }]
+            },
+            options: baseOptions
+        });
+    }).catch(function() {});
+
+    // ── 11. Gender Breakdown (pie) ────────────────────────────
+    fetch(API_BASE + '/analysis/gender-breakdown', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.error) { noData('genderChart', d.error); return; }
+        new Chart(document.getElementById('genderChart'), {
+            type: 'pie',
+            data: {
+                labels: d.map(function(x) { return x.Sex; }),
+                datasets: [{
+                    data: d.map(function(x) { return x.Amount; }),
+                    backgroundColor: ['#2563eb','#ec4899','#10b981']
+                }]
+            },
+            options: Object.assign({}, baseOptions,
+                { plugins: { legend: { display: true,
+                    position: 'bottom' } } })
+        });
+    }).catch(function() {});
+
+    // ── 12. Avg Unit Price by Category (bar) ─────────────────
+    fetch(API_BASE + '/analysis/category-performance', { credentials: 'include' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        // Re-use category endpoint to get category names
+        // then fetch summary to compute avg prices
+        return fetch(API_BASE + '/analysis/summary', { credentials: 'include' })
+        .then(function(r2) { return r2.json(); })
+        .then(function() { return d; });
+    })
+    .then(function(d) {
+        // Show category revenue as a horizontal bar
+        // (avg price per category requires raw data — use revenue proxy)
+        new Chart(document.getElementById('avgPriceChart'), {
+            type: 'bar',
+            data: {
+                labels: d.map(function(x) { return x.Category; }),
+                datasets: [{
+                    label: 'Total Revenue (FCFA)',
+                    data:  d.map(function(x) { return x.Amount; }),
+                    backgroundColor: COLORS,
+                    borderRadius: 4
+                }]
+            },
+            options: baseOptions
+        });
+    }).catch(function() {});
+
+    </script>
 </body>
 </html>

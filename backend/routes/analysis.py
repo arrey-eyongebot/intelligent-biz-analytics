@@ -130,3 +130,125 @@ def category_performance():
     perf = df.groupby('Category')['Amount'].sum() \
              .sort_values(ascending=False).reset_index()
     return jsonify(perf.to_dict(orient='records')), 200
+
+@analysis_bp.route('/gender-breakdown', methods=['GET'])
+def gender_breakdown():
+    """
+    GET /api/analysis/gender-breakdown
+    Returns total revenue split by customer gender.
+    Used for the gender doughnut chart.
+    """
+    df = load_cleaned_data()
+    if df is None:
+        return jsonify({'error': 'No data found'}), 400
+
+    if 'Sex' not in df.columns:
+        return jsonify({'error': 'No gender column found'}), 400
+
+    breakdown = df.groupby('Sex')['Amount'].sum().reset_index()
+    return jsonify(breakdown.to_dict(orient='records')), 200
+
+
+@analysis_bp.route('/top-customers', methods=['GET'])
+def top_customers():
+    """
+    GET /api/analysis/top-customers
+    Returns the top 10 customers by total spending.
+    Used for the horizontal bar chart.
+    """
+    df = load_cleaned_data()
+    if df is None:
+        return jsonify({'error': 'No data found'}), 400
+
+    if 'Customer_Name' not in df.columns:
+        return jsonify({'error': 'No customer column found'}), 400
+
+    top = df.groupby('Customer_Name')['Amount'].sum() \
+            .sort_values(ascending=False).head(10)
+    return jsonify(top.reset_index().to_dict(orient='records')), 200
+
+
+@analysis_bp.route('/day-of-week', methods=['GET'])
+def day_of_week():
+    """
+    GET /api/analysis/day-of-week
+    Returns total revenue grouped by day of week.
+    Helps identify which days generate most sales.
+    """
+    df = load_cleaned_data()
+    if df is None:
+        return jsonify({'error': 'No data found'}), 400
+
+    # Map day numbers to names
+    day_names = {
+        0: 'Monday',    1: 'Tuesday',  2: 'Wednesday',
+        3: 'Thursday',  4: 'Friday',   5: 'Saturday',
+        6: 'Sunday'
+    }
+    df['DayOfWeek'] = df['Date'].dt.dayofweek
+    df['DayName']   = df['DayOfWeek'].map(day_names)
+    result = df.groupby(['DayOfWeek', 'DayName'])['Amount'] \
+               .sum().reset_index() \
+               .sort_values('DayOfWeek')
+    return jsonify(result[['DayName', 'Amount']].to_dict(orient='records')), 200
+
+
+@analysis_bp.route('/monthly-quantity', methods=['GET'])
+def monthly_quantity():
+    """
+    GET /api/analysis/monthly-quantity
+    Returns total quantity sold per month.
+    Shows volume trends separately from revenue trends.
+    """
+    df = load_cleaned_data()
+    if df is None:
+        return jsonify({'error': 'No data found'}), 400
+
+    df['Month'] = df['Date'].dt.to_period('M').astype(str)
+    result = df.groupby('Month')['Quantity'].sum().reset_index()
+    return jsonify(result.to_dict(orient='records')), 200
+
+
+@analysis_bp.route('/product-quantity', methods=['GET'])
+def product_quantity():
+    """
+    GET /api/analysis/product-quantity
+    Returns top 10 products by quantity sold (not revenue).
+    Shows volume leaders vs revenue leaders.
+    """
+    df = load_cleaned_data()
+    if df is None:
+        return jsonify({'error': 'No data found'}), 400
+
+    top = df.groupby('Product')['Quantity'].sum() \
+            .sort_values(ascending=False).head(10)
+    return jsonify(top.reset_index().to_dict(orient='records')), 200
+
+
+@analysis_bp.route('/extended-summary', methods=['GET'])
+def extended_summary():
+    """
+    GET /api/analysis/extended-summary
+    Returns extended business metrics including
+    best month, best product, best category and
+    total quantity sold.
+    """
+    df = load_cleaned_data()
+    if df is None:
+        return jsonify({'error': 'No data found'}), 400
+
+    df['Month'] = df['Date'].dt.strftime('%B %Y')
+
+    best_month    = df.groupby('Month')['Amount'].sum().idxmax()
+    best_product  = df.groupby('Product')['Amount'].sum().idxmax()
+    best_category = df.groupby('Category')['Amount'].sum().idxmax()
+    best_channel  = df.groupby('Channel')['Amount'].sum().idxmax()
+    total_qty     = int(df['Quantity'].sum())
+
+    return jsonify({
+        'best_month':    best_month,
+        'best_product':  best_product,
+        'best_category': best_category,
+        'best_channel':  best_channel,
+        'total_quantity': total_qty
+    }), 200

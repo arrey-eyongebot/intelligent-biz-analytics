@@ -38,7 +38,9 @@ advisory_bp = Blueprint('advisory', __name__)
 
 # Initialize the Anthropic client
 # It automatically reads ANTHROPIC_API_KEY from environment variables
-client = anthropic.Anthropic()
+client = anthropic.Anthropic(
+    api_key=os.environ.get('ANTHROPIC_API_KEY')
+)
 
 
 def load_cleaned_data():

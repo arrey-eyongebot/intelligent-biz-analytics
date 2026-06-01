@@ -2,14 +2,17 @@
 # routes/upload.py — Smart File Upload & Column Mapping
 #
 # STEP 1 — POST /api/upload/
-#   Receives uploaded CSV/Excel, checks if required columns
-#   match perfectly. If yes, saves and returns 'perfect_match'.
-#   If no, returns the required columns and uploaded columns
-#   so the user can manually map them on the frontend.
+#   Checks if uploaded file columns match the system perfectly.
+#   If yes → cleans and saves data, returns perfect_match=True.
+#   If no  → returns columns for manual mapping on frontend.
 #
 # STEP 2 — POST /api/upload/confirm
-#   Receives the user's confirmed mapping, applies it,
-#   drops unmatched columns, cleans and saves the data.
+#   Applies the user's confirmed mapping.
+#   Handles three smart defaults for unmapped columns:
+#     - Amount   → calculated as Quantity × Unit_Price
+#     - Channel  → filled with 'Onsite'
+#     - Category → filled with 'Consumables'
+#   All other unmapped columns are dropped.
 # ============================================================
 
 from flask import Blueprint, request, jsonify
@@ -22,20 +25,30 @@ from backend.config import UPLOAD_FOLDER, ALLOWED_EXTENSIONS
 
 upload_bp = Blueprint('upload', __name__)
 
-# ── Required columns the system needs to function ────────────
+# ── Required system columns ───────────────────────────────────
 REQUIRED_COLUMNS = [
     'Product', 'Category', 'Quantity',
     'Date', 'Unit_Price', 'Amount', 'Channel'
 ]
 
-# ── Optional columns kept if present ─────────────────────────
+# ── Optional system columns ───────────────────────────────────
 OPTIONAL_COLUMNS = ['Customer_Name', 'Sex']
 
-# All system columns
+# ── All system columns ────────────────────────────────────────
 ALL_COLUMNS = REQUIRED_COLUMNS + OPTIONAL_COLUMNS
+
+# ── Default values for columns that can be auto-filled ───────
+# These columns do not need to be mapped by the user.
+# If unmapped, they are filled with these defaults.
+COLUMN_DEFAULTS = {
+    'Channel':  'Onsite',       # All sales default to Onsite
+    'Category': 'Consumables',  # All products default to Consumables
+    # Amount is handled separately (Quantity × Unit_Price)
+}
 
 
 def allowed_file(filename):
+    """Check if file extension is allowed (CSV or Excel)."""
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -43,45 +56,59 @@ def allowed_file(filename):
 def clean_data(df):
     """
     Cleans the DataFrame after column mapping is applied.
+    Steps:
+    1. Remove empty rows
+    2. Standardize text columns
+    3. Normalize Channel values
+    4. Convert Date to datetime
+    5. Convert numeric columns
+    6. Remove duplicates
     """
+    # Remove completely empty rows
     df.dropna(how='all', inplace=True)
 
+    # Standardize text columns
     for col in ['Product', 'Category', 'Channel', 'Sex', 'Customer_Name']:
         if col in df.columns:
             df[col] = df[col].astype(str).str.strip().str.title()
 
+    # Normalize Channel to exactly Online or Onsite
     if 'Channel' in df.columns:
         channel_map = {
-            'online': 'Online', 'onsite': 'Onsite',
-            'Online': 'Online', 'Onsite': 'Onsite',
-            'ONLINE': 'Online', 'ONSITE': 'Onsite',
+            'Online': 'Online',   'Onsite': 'Onsite',
+            'online': 'Online',   'onsite': 'Onsite',
+            'ONLINE': 'Online',   'ONSITE': 'Onsite',
             'In Store': 'Onsite', 'In-Store': 'Onsite',
-            'Web': 'Online', 'Internet': 'Online'
+            'Web': 'Online',      'Internet': 'Online'
         }
         df['Channel'] = df['Channel'].replace(channel_map)
 
+    # Convert Date column to datetime format
     if 'Date' in df.columns:
         df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
         df.dropna(subset=['Date'], inplace=True)
 
+    # Convert numeric columns, fill invalid with 0
     for col in ['Quantity', 'Amount', 'Unit_Price']:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
+    # Remove duplicate rows
     df.drop_duplicates(inplace=True)
+
     return df
 
 
 def check_perfect_match(uploaded_columns):
     """
-    Checks if all required columns exist exactly in the
-    uploaded file columns (case-insensitive check).
+    Checks if all required columns exist in the uploaded file
+    using case-insensitive matching.
 
     Returns:
         is_perfect (bool): True if all required columns found
-        col_map    (dict): Mapping of system col to uploaded col
+        col_map    (dict): { system_col: uploaded_col }
+        missing    (list): Required columns not found
     """
-    # Normalize uploaded columns for comparison
     upper_map = {col.strip().upper(): col for col in uploaded_columns}
     col_map   = {}
     missing   = []
@@ -105,18 +132,15 @@ def check_perfect_match(uploaded_columns):
 def upload_file():
     """
     POST /api/upload/
-    Uploads file and checks column match.
+    Receives uploaded file and checks column match.
 
     Returns:
-    - If perfect match:
+    - Perfect match:
       { perfect_match: true, rows, columns, preview }
-
-    - If not perfect match:
-      { perfect_match: false,
-        required_columns: [...],
-        optional_columns: [...],
-        uploaded_columns: [...],
-        filename: '...' }
+    - Mismatch:
+      { perfect_match: false, required_columns,
+        optional_columns, uploaded_columns,
+        missing_columns, filename }
     """
     if 'file' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
@@ -142,11 +166,11 @@ def upload_file():
 
         uploaded_columns = list(df.columns)
 
-        # Check if columns match perfectly
+        # Check if all columns match perfectly
         is_perfect, col_map, missing = check_perfect_match(uploaded_columns)
 
         if is_perfect:
-            # Rename columns to exact system names
+            # Rename to exact system column names
             reverse_map = {v: k for k, v in col_map.items()}
             df = df.rename(columns=reverse_map)
 
@@ -171,7 +195,7 @@ def upload_file():
             # Return columns for manual mapping
             return jsonify({
                 'perfect_match':    False,
-                'message':          'Some columns could not be matched. Please map them manually.',
+                'message':          'Some columns could not be matched.',
                 'required_columns': REQUIRED_COLUMNS,
                 'optional_columns': OPTIONAL_COLUMNS,
                 'uploaded_columns': uploaded_columns,
@@ -187,20 +211,23 @@ def upload_file():
 def confirm_mapping():
     """
     POST /api/upload/confirm
-    Receives user mapping: { system_col: uploaded_col }
-    Applies mapping, drops unmatched columns, cleans data.
+    Applies user-confirmed column mapping with smart defaults.
+
+    Smart defaults for unmapped columns:
+    - Amount   → calculated as Quantity × Unit_Price
+    - Channel  → all rows filled with 'Onsite'
+    - Category → all rows filled with 'Consumables'
 
     Request body:
     {
         "filename": "sales.csv",
         "mapping": {
             "Product":    "Item",
-            "Category":   "Type",
             "Quantity":   "Qty",
             "Date":       "Date",
-            "Unit_Price": "Price",
-            "Amount":     "Total",
-            "Channel":    "Store_Type"
+            "Unit_Price": "Price"
+            // Amount, Channel, Category can be omitted
+            // they will use defaults
         }
     }
     """
@@ -214,15 +241,19 @@ def confirm_mapping():
     if not filename:
         return jsonify({'error': 'No filename provided'}), 400
 
-    # Check all required columns are mapped
-    unmapped = [col for col in REQUIRED_COLUMNS if col not in mapping]
+    # Check that truly required columns (no defaults) are mapped
+    must_map = [col for col in REQUIRED_COLUMNS
+                if col not in COLUMN_DEFAULTS and col != 'Amount']
+    unmapped = [col for col in must_map if col not in mapping]
+
     if unmapped:
         return jsonify({
-            'error': f'Please map these required columns: {", ".join(unmapped)}'
+            'error': f'Please map these required columns: '
+                     f'{", ".join(unmapped)}'
         }), 400
 
     try:
-        # Reload original file
+        # Reload the original uploaded file
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         if filename.endswith('.csv'):
             df = pd.read_csv(filepath)
@@ -237,6 +268,28 @@ def confirm_mapping():
         # Keep only system columns that exist after renaming
         keep = [c for c in ALL_COLUMNS if c in df.columns]
         df   = df[keep]
+
+        # ── Apply Smart Defaults ──────────────────────────────
+
+        # Default 1: Channel → 'Onsite' if not mapped
+        if 'Channel' not in df.columns:
+            df['Channel'] = 'Onsite'
+
+        # Default 2: Category → 'Consumables' if not mapped
+        if 'Category' not in df.columns:
+            df['Category'] = 'Consumables'
+
+        # Default 3: Amount → Quantity × Unit_Price if not mapped
+        if 'Amount' not in df.columns:
+            if 'Quantity' in df.columns and 'Unit_Price' in df.columns:
+                # Convert to numeric first to avoid string multiplication
+                df['Quantity']   = pd.to_numeric(
+                    df['Quantity'],   errors='coerce').fillna(0)
+                df['Unit_Price'] = pd.to_numeric(
+                    df['Unit_Price'], errors='coerce').fillna(0)
+                df['Amount'] = df['Quantity'] * df['Unit_Price']
+            else:
+                df['Amount'] = 0  # Fallback if both are missing
 
         # Clean the data
         df = clean_data(df)

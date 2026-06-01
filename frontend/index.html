@@ -73,7 +73,11 @@
             <p class="file-name" id="file-name">No file selected</p>
         </div>
 
-        <!-- type="button" is CRITICAL — prevents any form submission -->
+        <!--
+            type="button" is CRITICAL here.
+            Without it, the browser treats this as a submit button
+            which causes the page to reload every time it is clicked.
+        -->
         <button type="button" class="btn-primary" id="upload-btn" disabled>
             <i class="fas fa-upload"></i> Upload &amp; Detect Columns
         </button>
@@ -83,16 +87,26 @@
         </div>
 
         <div id="mapping-section" style="display:none;">
-            <h3 style="margin:1.5rem 0 1rem;">
+            <h3 style="margin:1.5rem 0 0.5rem;">
                 <i class="fas fa-columns"></i> Confirm Column Mapping
             </h3>
-            <p style="color:#64748b; margin-bottom:1rem;">
-                Map each required system column to the matching
-                column in your uploaded file.
-                Columns not mapped will be dropped automatically.
+            <p style="color:#64748b; margin-bottom:0.5rem;">
+                Map each system column to the matching column in your file.
+            </p>
+            <p style="color:#10b981; font-size:0.9rem; margin-bottom:1rem;">
+                <i class="fas fa-info-circle"></i>
+                <strong>Amount</strong> — if not mapped, it will be calculated
+                as Quantity × Unit_Price automatically.<br>
+                <strong>Channel</strong> — if not mapped, all rows default
+                to <em>Onsite</em>.<br>
+                <strong>Category</strong> — if not mapped, all rows default
+                to <em>Consumables</em>.
             </p>
             <div id="mapping-table"></div>
-            <!-- type="button" is CRITICAL — prevents page reload -->
+            <!--
+                type="button" is CRITICAL here too.
+                Prevents the confirm button from reloading the page.
+            -->
             <button type="button" class="btn-primary" id="confirm-btn"
                     style="margin-top:1rem">
                 <i class="fas fa-check"></i> Confirm &amp; Analyze
@@ -104,88 +118,107 @@
         <p>Built by Brian Arrey — Computer Engineering &copy; 2025</p>
     </footer>
 
+    <!--
+        ALL JavaScript is written directly in this script tag.
+        This avoids loading order problems that happen when
+        auth.js and main.js are loaded as separate files and
+        compete with each other causing the page to reload.
+    -->
     <script>
-    // ============================================================
-    // index.html inline script
-    // All JS is here to avoid loading order issues between files.
-    // ============================================================
+    'use strict';
 
+    // Base URL for all backend API calls
     const API_BASE = 'http://127.0.0.1:5000/api';
 
-    // Required system columns — must all be mapped
+    // System columns the backend requires
+    // These are shown on the LEFT side of the mapping table
     const REQUIRED_COLUMNS = [
         'Product', 'Category', 'Quantity',
         'Date', 'Unit_Price', 'Amount', 'Channel'
     ];
 
-    // Optional system columns — mapped only if available
+    // Optional columns — kept if found in the uploaded file
     const OPTIONAL_COLUMNS = ['Customer_Name', 'Sex'];
 
-    // Upload state
+    // Columns that have default values if not mapped by the user
+    // key   = system column name
+    // value = default fill value
+    const DEFAULT_VALUES = {
+        'Amount':   'CALCULATE',   // Quantity x Unit_Price
+        'Channel':  'Onsite',      // Default channel
+        'Category': 'Consumables'  // Default category
+    };
+
+    // Upload state — stored between upload and confirm steps
     let uploadedFilename = '';
     let uploadedColumns  = [];
 
-    // ── Step 1: Auth Check ────────────────────────────────────
-    // Check localStorage for saved user — no async, no redirect race
+    // ── Auth Check (synchronous) ──────────────────────────────
+    // We check localStorage immediately — no async fetch needed.
+    // This prevents any timing issues that cause page reloads.
     (function checkAuth() {
         const saved = localStorage.getItem('bizuser');
         if (!saved) {
+            // Not logged in — redirect to login
             window.location.replace('login.html');
             return;
         }
-        // Show user in navbar immediately
         try {
-            const user    = JSON.parse(saved);
+            const user     = JSON.parse(saved);
             const navLinks = document.getElementById('nav-links');
             if (!navLinks) return;
+
+            // Prevent adding navbar user element twice
+            if (document.querySelector('.nav-user')) return;
+
             const el = document.createElement('div');
             el.className = 'nav-user';
-            el.innerHTML = `
-                <span class="nav-username">
-                    <i class="fas fa-user-circle"></i> ${user.name}
-                </span>
-                <button type="button" class="nav-logout-btn"
-                        onclick="handleLogout()">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </button>`;
+            el.innerHTML =
+                '<span class="nav-username">' +
+                    '<i class="fas fa-user-circle"></i> ' + user.name +
+                '</span>' +
+                '<button type="button" class="nav-logout-btn" ' +
+                        'onclick="handleLogout()">' +
+                    '<i class="fas fa-sign-out-alt"></i> Logout' +
+                '</button>';
             navLinks.appendChild(el);
         } catch(e) {
             window.location.replace('login.html');
         }
     })();
 
-    // ── Logout ────────────────────────────────────────────────
-    async function handleLogout() {
-        try {
-            await fetch(`${API_BASE}/auth/logout`, {
-                method: 'POST', credentials: 'include'
-            });
-        } catch(e) {}
-        localStorage.removeItem('bizuser');
-        window.location.replace('login.html');
+    // ── Logout Function ───────────────────────────────────────
+    function handleLogout() {
+        fetch(API_BASE + '/auth/logout', {
+            method: 'POST',
+            credentials: 'include'
+        }).catch(function() {}).finally(function() {
+            localStorage.removeItem('bizuser');
+            window.location.replace('login.html');
+        });
     }
 
-    // ── DOM References ────────────────────────────────────────
-    const fileInput      = document.getElementById('file-input');
-    const uploadBtn      = document.getElementById('upload-btn');
-    const fileNameEl     = document.getElementById('file-name');
-    const statusBox      = document.getElementById('status-box');
-    const statusContent  = document.getElementById('status-content');
-    const mappingSection = document.getElementById('mapping-section');
-    const mappingTable   = document.getElementById('mapping-table');
-    const confirmBtn     = document.getElementById('confirm-btn');
+    // ── DOM Element References ────────────────────────────────
+    var fileInput      = document.getElementById('file-input');
+    var uploadBtn      = document.getElementById('upload-btn');
+    var fileNameEl     = document.getElementById('file-name');
+    var statusBox      = document.getElementById('status-box');
+    var statusContent  = document.getElementById('status-content');
+    var mappingSection = document.getElementById('mapping-section');
+    var mappingTable   = document.getElementById('mapping-table');
+    var confirmBtn     = document.getElementById('confirm-btn');
 
-    // ── File Selected ─────────────────────────────────────────
+    // ── File Selected via Browse Button ───────────────────────
     fileInput.addEventListener('change', function() {
-        const file = fileInput.files[0];
+        var file = fileInput.files[0];
         if (file) {
             fileNameEl.textContent = file.name;
             uploadBtn.disabled     = false;
         }
     });
 
-    // ── Drag and Drop ─────────────────────────────────────────
-    const uploadBox = document.getElementById('upload-box');
+    // ── Drag Over Upload Box ──────────────────────────────────
+    var uploadBox = document.getElementById('upload-box');
 
     uploadBox.addEventListener('dragover', function(e) {
         e.preventDefault();
@@ -196,10 +229,11 @@
         uploadBox.style.background = '';
     });
 
+    // ── File Dropped onto Upload Box ──────────────────────────
     uploadBox.addEventListener('drop', function(e) {
         e.preventDefault();
         uploadBox.style.background = '';
-        const file = e.dataTransfer.files[0];
+        var file = e.dataTransfer.files[0];
         if (file) {
             fileInput.files        = e.dataTransfer.files;
             fileNameEl.textContent = file.name;
@@ -207,255 +241,270 @@
         }
     });
 
-    // ── Upload Button ─────────────────────────────────────────
-    // type="button" on the HTML element already prevents reload
-    // but we also call e.preventDefault() as double safety
-    uploadBtn.addEventListener('click', async function(e) {
+    // ── Upload Button Click ───────────────────────────────────
+    // type="button" on the HTML element prevents reload.
+    // e.preventDefault() and e.stopPropagation() are added
+    // as an extra safety layer.
+    uploadBtn.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
 
-        const file = fileInput.files[0];
+        var file = fileInput.files[0];
         if (!file) return;
 
-        // Show spinner
+        // Show loading spinner
         statusBox.style.display      = 'block';
-        statusContent.innerHTML      = `
-            <div class="spinner"></div>
-            <p>Uploading and checking columns...</p>`;
+        statusContent.innerHTML      =
+            '<div class="spinner"></div>' +
+            '<p>Uploading and checking columns...</p>';
         uploadBtn.disabled           = true;
         mappingSection.style.display = 'none';
 
-        const formData = new FormData();
+        // Build form data with the file
+        var formData = new FormData();
         formData.append('file', file);
 
-        try {
-            const res  = await fetch(`${API_BASE}/upload/`, {
-                method:      'POST',
-                body:        formData,
-                credentials: 'include'
-            });
+        // Send to backend
+        fetch(API_BASE + '/upload/', {
+            method:      'POST',
+            body:        formData,
+            credentials: 'include'
+        })
+        .then(function(res) { return res.json().then(function(data) {
+            return { ok: res.ok, data: data };
+        }); })
+        .then(function(result) {
+            var ok   = result.ok;
+            var data = result.data;
 
-            const data = await res.json();
-
-            if (!res.ok) {
-                statusContent.innerHTML = `
-                    <p class="status-error">
-                        <i class="fas fa-times-circle"></i>
-                        Error: ${data.error}
-                    </p>`;
+            if (!ok) {
+                statusContent.innerHTML =
+                    '<p class="status-error">' +
+                    '<i class="fas fa-times-circle"></i> ' +
+                    'Error: ' + data.error + '</p>';
                 uploadBtn.disabled = false;
                 return;
             }
 
             if (data.perfect_match) {
-                // ── Perfect match: go to dashboard ────────────
-                statusContent.innerHTML = `
-                    <p class="status-success">
-                        <i class="fas fa-check-circle"></i>
-                        All columns matched perfectly!
-                        ${data.rows} records loaded.
-                        Redirecting to dashboard...
-                    </p>`;
+                // ── All columns matched — go to dashboard ─────
+                statusContent.innerHTML =
+                    '<p class="status-success">' +
+                    '<i class="fas fa-check-circle"></i> ' +
+                    'All columns matched! ' + data.rows +
+                    ' records loaded. Redirecting...</p>';
                 setTimeout(function() {
                     window.location.href = 'dashboard.html';
                 }, 1500);
 
             } else {
-                // ── Mismatch: show mapping table ───────────────
+                // ── Mismatch — show mapping table ─────────────
                 uploadedFilename = data.filename;
                 uploadedColumns  = data.uploaded_columns;
 
-                statusContent.innerHTML = `
-                    <p style="color:#f59e0b">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <strong>Column mismatch detected.</strong>
-                        Please map your columns in the table below.
-                    </p>
-                    <p>Missing:
-                        <strong>${data.missing_columns.join(', ')}</strong>
-                    </p>`;
+                statusContent.innerHTML =
+                    '<p style="color:#f59e0b">' +
+                    '<i class="fas fa-exclamation-triangle"></i> ' +
+                    '<strong>Column mismatch detected.</strong> ' +
+                    'Please map your columns below.</p>' +
+                    '<p>Missing: <strong>' +
+                    data.missing_columns.join(', ') +
+                    '</strong></p>';
 
                 buildMappingTable(data.uploaded_columns);
                 mappingSection.style.display = 'block';
+
                 setTimeout(function() {
                     mappingSection.scrollIntoView({ behavior: 'smooth' });
                 }, 300);
             }
 
-        } catch (err) {
-            statusContent.innerHTML = `
-                <p class="status-error">
-                    <i class="fas fa-times-circle"></i>
-                    Could not connect to server.
-                    Make sure the backend is running.
-                </p>`;
-        }
-
-        uploadBtn.disabled = false;
+            uploadBtn.disabled = false;
+        })
+        .catch(function(err) {
+            statusContent.innerHTML =
+                '<p class="status-error">' +
+                '<i class="fas fa-times-circle"></i> ' +
+                'Could not connect to server. ' +
+                'Make sure the backend is running.</p>';
+            uploadBtn.disabled = false;
+        });
     });
 
     // ── Build Mapping Table ───────────────────────────────────
-    // LEFT  = system column (fixed label)
+    // LEFT  = system column name (fixed)
     // RIGHT = dropdown of columns from the uploaded file
+    // Columns with defaults show a note explaining the default
     function buildMappingTable(cols) {
 
-        // Try to auto-suggest best match for each system column
+        // Try to find a matching column by name similarity
         function autoSuggest(systemCol) {
-            const lower = systemCol.toLowerCase().replace(/_/g, '');
-            return cols.find(function(c) {
-                const cl = c.toLowerCase().replace(/[^a-z]/g, '');
-                return cl === lower ||
-                       cl.includes(lower) ||
-                       lower.includes(cl);
-            }) || '';
+            var lower = systemCol.toLowerCase().replace(/_/g, '');
+            var found = null;
+            cols.forEach(function(c) {
+                var cl = c.toLowerCase().replace(/[^a-z]/g, '');
+                if (cl === lower || cl.includes(lower) ||
+                    lower.includes(cl)) {
+                    found = c;
+                }
+            });
+            return found;
         }
 
-        mappingTable.innerHTML = `
-            <table class="mapping-tbl">
-                <thead>
-                    <tr>
-                        <th>System Column</th>
-                        <th>Your File Column</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${REQUIRED_COLUMNS.map(function(col) {
-                        const sug = autoSuggest(col);
-                        return `
-                        <tr>
-                            <td>
-                                <strong>${col}</strong>
-                                <span class="required"> *</span>
-                            </td>
-                            <td>
-                                <select class="map-select"
-                                        data-system="${col}">
-                                    <option value="">
-                                        -- Not in my file --
-                                    </option>
-                                    ${cols.map(function(c) {
-                                        return `<option value="${c}"
-                                            ${c === sug ? 'selected':''}>
-                                            ${c}
-                                        </option>`;
-                                    }).join('')}
-                                </select>
-                            </td>
-                        </tr>`;
-                    }).join('')}
-                    <tr>
-                        <td colspan="2"
-                            style="background:#f1f5f9;color:#64748b;
-                                   font-size:0.85rem;padding:0.5rem 1rem">
-                            Optional Columns
-                        </td>
-                    </tr>
-                    ${OPTIONAL_COLUMNS.map(function(col) {
-                        const sug = autoSuggest(col);
-                        return `
-                        <tr>
-                            <td>
-                                <strong>${col}</strong>
-                                <span style="color:#64748b;font-size:0.8rem">
-                                    (optional)
-                                </span>
-                            </td>
-                            <td>
-                                <select class="map-select"
-                                        data-system="${col}">
-                                    <option value="">
-                                        -- Not in my file --
-                                    </option>
-                                    ${cols.map(function(c) {
-                                        return `<option value="${c}"
-                                            ${c === sug ? 'selected':''}>
-                                            ${c}
-                                        </option>`;
-                                    }).join('')}
-                                </select>
-                            </td>
-                        </tr>`;
-                    }).join('')}
-                </tbody>
-            </table>
-            <p style="color:#64748b;font-size:0.85rem;margin-top:0.5rem">
-                <i class="fas fa-info-circle"></i>
-                Columns not mapped here will be dropped automatically.
-            </p>`;
+        // Build rows for required columns
+        var requiredRows = REQUIRED_COLUMNS.map(function(col) {
+            var sug     = autoSuggest(col);
+            var hasDefault = DEFAULT_VALUES.hasOwnProperty(col);
+            var defaultNote = '';
+
+            if (col === 'Amount') {
+                defaultNote =
+                    '<br><small style="color:#10b981">' +
+                    'Default: Quantity × Unit_Price</small>';
+            } else if (col === 'Channel') {
+                defaultNote =
+                    '<br><small style="color:#10b981">' +
+                    'Default: Onsite</small>';
+            } else if (col === 'Category') {
+                defaultNote =
+                    '<br><small style="color:#10b981">' +
+                    'Default: Consumables</small>';
+            }
+
+            var options = '<option value="">-- Use default --</option>';
+            if (!hasDefault) {
+                options = '<option value="">-- Not in my file --</option>';
+            }
+            cols.forEach(function(c) {
+                var sel = (c === sug) ? ' selected' : '';
+                options += '<option value="' + c + '"' + sel + '>' +
+                           c + '</option>';
+            });
+
+            return '<tr>' +
+                '<td><strong>' + col + '</strong>' +
+                (hasDefault
+                    ? '<span class="required"> *</span>' +
+                      defaultNote
+                    : '<span class="required"> *</span>') +
+                '</td>' +
+                '<td><select class="map-select" data-system="' +
+                col + '">' + options + '</select></td>' +
+                '</tr>';
+        }).join('');
+
+        // Build rows for optional columns
+        var optionalRows = OPTIONAL_COLUMNS.map(function(col) {
+            var sug = autoSuggest(col);
+            var options = '<option value="">-- Not in my file --</option>';
+            cols.forEach(function(c) {
+                var sel = (c === sug) ? ' selected' : '';
+                options += '<option value="' + c + '"' + sel + '>' +
+                           c + '</option>';
+            });
+            return '<tr>' +
+                '<td><strong>' + col + '</strong>' +
+                '<span style="color:#64748b;font-size:0.8rem">' +
+                ' (optional)</span></td>' +
+                '<td><select class="map-select" data-system="' +
+                col + '">' + options + '</select></td>' +
+                '</tr>';
+        }).join('');
+
+        mappingTable.innerHTML =
+            '<table class="mapping-tbl">' +
+            '<thead><tr>' +
+            '<th>System Column</th>' +
+            '<th>Your File Column</th>' +
+            '</tr></thead>' +
+            '<tbody>' +
+            requiredRows +
+            '<tr><td colspan="2" style="background:#f1f5f9;' +
+            'color:#64748b;font-size:0.85rem;padding:0.5rem 1rem">' +
+            'Optional Columns</td></tr>' +
+            optionalRows +
+            '</tbody></table>' +
+            '<p style="color:#64748b;font-size:0.85rem;margin-top:0.5rem">' +
+            '<i class="fas fa-info-circle"></i> ' +
+            'Columns not mapped will be dropped or filled with defaults.' +
+            '</p>';
     }
 
-    // ── Confirm Mapping Button ────────────────────────────────
-    confirmBtn.addEventListener('click', async function(e) {
+    // ── Confirm Mapping Button Click ──────────────────────────
+    confirmBtn.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
 
-        // Read dropdown selections
-        const selects = document.querySelectorAll('.map-select');
-        const mapping = {};
+        // Read all dropdown selections
+        var selects = document.querySelectorAll('.map-select');
+        var mapping = {};
         selects.forEach(function(sel) {
-            if (sel.value) mapping[sel.dataset.system] = sel.value;
+            if (sel.value) {
+                mapping[sel.dataset.system] = sel.value;
+            }
         });
 
-        // Validate all required columns are mapped
-        const unmapped = REQUIRED_COLUMNS.filter(function(col) {
+        // Validate: only non-defaultable required columns must be mapped
+        // Amount, Channel and Category have defaults so they are optional
+        var mustMap = REQUIRED_COLUMNS.filter(function(col) {
+            return !DEFAULT_VALUES.hasOwnProperty(col);
+        });
+
+        var unmapped = mustMap.filter(function(col) {
             return !mapping[col];
         });
 
         if (unmapped.length > 0) {
             statusBox.style.display = 'block';
-            statusContent.innerHTML = `
-                <p class="status-error">
-                    <i class="fas fa-times-circle"></i>
-                    Please map these required columns:
-                    <strong>${unmapped.join(', ')}</strong>
-                </p>`;
+            statusContent.innerHTML =
+                '<p class="status-error">' +
+                '<i class="fas fa-times-circle"></i> ' +
+                'Please map these required columns: ' +
+                '<strong>' + unmapped.join(', ') + '</strong></p>';
             return;
         }
 
         // Show processing spinner
         statusBox.style.display = 'block';
-        statusContent.innerHTML = `
-            <div class="spinner"></div>
-            <p>Processing and cleaning your data...</p>`;
+        statusContent.innerHTML =
+            '<div class="spinner"></div>' +
+            '<p>Processing and cleaning your data...</p>';
 
-        try {
-            const res = await fetch(`${API_BASE}/upload/confirm`, {
-                method:      'POST',
-                headers:     { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body:        JSON.stringify({
-                    filename: uploadedFilename,
-                    mapping:  mapping
-                })
-            });
-
-            const data = await res.json();
-
-            if (res.ok) {
+        // Send confirmed mapping to backend
+        fetch(API_BASE + '/upload/confirm', {
+            method:      'POST',
+            headers:     { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body:        JSON.stringify({
+                filename: uploadedFilename,
+                mapping:  mapping
+            })
+        })
+        .then(function(res) { return res.json().then(function(data) {
+            return { ok: res.ok, data: data };
+        }); })
+        .then(function(result) {
+            if (result.ok) {
                 mappingSection.style.display = 'none';
-                statusContent.innerHTML = `
-                    <p class="status-success">
-                        <i class="fas fa-check-circle"></i>
-                        Data processed! ${data.rows} records ready.
-                        Redirecting to dashboard...
-                    </p>`;
+                statusContent.innerHTML =
+                    '<p class="status-success">' +
+                    '<i class="fas fa-check-circle"></i> ' +
+                    'Data processed! ' + result.data.rows +
+                    ' records ready. Redirecting...</p>';
                 setTimeout(function() {
                     window.location.href = 'dashboard.html';
                 }, 1500);
             } else {
-                statusContent.innerHTML = `
-                    <p class="status-error">
-                        <i class="fas fa-times-circle"></i>
-                        ${data.error}
-                    </p>`;
+                statusContent.innerHTML =
+                    '<p class="status-error">' +
+                    '<i class="fas fa-times-circle"></i> ' +
+                    result.data.error + '</p>';
             }
-
-        } catch (err) {
-            statusContent.innerHTML = `
-                <p class="status-error">
-                    Could not connect to server.
-                </p>`;
-        }
+        })
+        .catch(function() {
+            statusContent.innerHTML =
+                '<p class="status-error">Could not connect to server.</p>';
+        });
     });
 
     </script>
