@@ -7,7 +7,7 @@
 // ============================================================
 
 // Local API URL — not exported to avoid duplicate declaration
-const API_BASE = window.location.origin + '/api';
+const AUTH_API = window.location.origin + '/api';
 
 async function checkAuth() {
     const savedUser = localStorage.getItem('bizuser');
