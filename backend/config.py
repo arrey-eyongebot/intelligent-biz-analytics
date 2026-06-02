@@ -13,11 +13,16 @@ import os
 
 # Absolute path of the backend/ directory
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+ROOT_DIR = os.path.abspath(os.path.join(BASE_DIR, '..'))
+
 
 # Path where all uploaded files will be saved
 # Resolves to: intelligent-biz-analytics/data/uploads/
-UPLOAD_FOLDER = os.path.join(BASE_DIR, '..', 'data', 'uploads')
-
+if os.environ.get('RENDER'):
+    # On Render free plan use /tmp — writable but resets on restart
+    UPLOAD_FOLDER = '/tmp/uploads'
+else:
+    UPLOAD_FOLDER = os.path.join(ROOT_DIR, 'data', 'uploads')
 # Only these file extensions are accepted during upload
 ALLOWED_EXTENSIONS = {'csv', 'xlsx', 'xls'}
 
