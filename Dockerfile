@@ -1,20 +1,11 @@
-FROM python:3.11-slim
-
-WORKDIR /app
+# Change WORKDIR to point directly to backend
+WORKDIR /app/backend
 
 COPY requirements.txt .
-
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy everything including start.sh in ONE step
 COPY . .
 
 RUN mkdir -p data/uploads
 
-RUN chmod +x start.sh
-
-# Don't hardcode 5000 — Railway injects PORT dynamically
-EXPOSE 8080
-
-# Shell form — properly expands $PORT at runtime
-CMD ["sh", "-c", "./start.sh"]
+CMD gunicorn --bind 0.0.0.0:${PORT:-5000} --workers 2 --timeout 120 app:app
