@@ -1,10 +1,12 @@
-# Change WORKDIR to point directly to backend
+FROM python:3.11-slim
+
 WORKDIR /app/backend
 
-COPY requirements.txt .
+COPY backend/requirements.txt .
+
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY backend/ .
 
 RUN mkdir -p data/uploads
 
