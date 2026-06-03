@@ -9,7 +9,9 @@
 // ============================================================
 
 // Base URL for all API calls
-const API_BASE = window.location.origin + '/api';
+var API_BASE = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
+    ? 'http://127.0.0.1:5000/api'
+    : '/api';
 
 // ── Predict Button Click ──────────────────────────────────────
 document.getElementById('predict-btn').addEventListener('click', async () => {

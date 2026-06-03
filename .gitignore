@@ -7,6 +7,7 @@ __pycache__/
 *.pyo
 
 # Model files
+#models/*.pkl
 models/*.pkl
 
 # Environment variables
