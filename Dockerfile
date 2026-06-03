@@ -39,4 +39,4 @@ EXPOSE 5000
 # Command to start the Flask app using gunicorn
 # gunicorn is a production-grade web server
 # workers=2 means 2 parallel request handlers
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--chdir", "backend", "app:app"]
+CMD gunicorn --bind 0.0.0.0:$PORT --workers 2 --chdir backend app:app
