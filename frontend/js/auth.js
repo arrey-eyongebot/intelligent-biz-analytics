@@ -9,7 +9,7 @@
 // Local API URL — not exported to avoid duplicate declaration AUTH_API
 var AUTH_API = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
     ? 'http://127.0.0.1:5000/api'
-    : '/api';
+    : 'https://bizanalytics-production-66f5.up.railway.app/api';
 
 async function checkAuth() {
     const savedUser = localStorage.getItem('bizuser');

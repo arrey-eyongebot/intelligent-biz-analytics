@@ -4,7 +4,7 @@
 
 var API_BASE = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
     ? 'http://127.0.0.1:5000/api'
-    : '/api';
+    : 'https://bizanalytics-production-66f5.up.railway.app/api';
 
 function updateTotal() {
     var qty   = parseFloat(document.getElementById('quantity').value)   || 0;

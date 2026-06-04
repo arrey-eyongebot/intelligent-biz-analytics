@@ -17,7 +17,7 @@
 // Base URL for all API calls
 var API_BASE = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
     ? 'http://127.0.0.1:5000/api'
-    : '/api';
+    : 'https://bizanalytics-production-66f5.up.railway.app/api';
 // ── Currency Formatter ────────────────────────────────────────
 // Formats a number as Cameroonian CFA Franc (FCFA)
 // e.g. 1500000 → "1 500 000 FCFA"

@@ -17,9 +17,9 @@
 // ============================================================
 
 // Base URL for all API calls
-var API_BASE = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
+var API_BASE = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') ? 'http://localhost:5000' : 'https://bizanalytics-production-66f5.up.railway.app'
     ? 'http://127.0.0.1:5000/api'
-    : '/api';
+    : 'https://bizanalytics-production-66f5.up.railway.app/api';
 
 // Stores the full conversation history for multi-turn memory.
 // Each item: { role: 'user' | 'assistant', content: '...' }
