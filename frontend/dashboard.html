@@ -342,9 +342,9 @@
         } catch(e) { window.location.replace('login.html'); }
     })();
 
-    var API_BASE = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
+   var API_BASE = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
     ? 'http://127.0.0.1:5000/api'
-    : '/api';
+    : 'https://bizanalytics-production-66f5.up.railway.app/api';
 
     function handleLogout() {
         fetch(API_BASE + '/auth/logout', {
